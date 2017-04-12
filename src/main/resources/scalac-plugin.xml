@@ -1,0 +1,4 @@
+<plugin>
+  <name>sireum-plugin</name>
+  <classname>org.sireum.scalac.SireumPlugin</classname>
+</plugin>
