@@ -60,7 +60,9 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         if (tree.rhs == EmptyTree || tree.rhs == dollar) tree
         else tree.copy(rhs = Apply(Ident("_assign"), List(tree.rhs)))
       case tree: Assign =>
-        tree.copy(lhs = Apply(Ident("_up"), List(tree.lhs)), rhs = Apply(Ident("_assign"), List(tree.rhs)))
+        tree.copy(rhs = Apply(Ident("_assign"), List(tree.rhs)))
+      case tree@Apply(Select(_, TermName("update")), List(t2, t3)) =>
+        tree.copy(args = List(t2, Apply(Ident("_assign"), List(t3))))
       case tree: Return =>
         val cleanups = for (v <- declaredVars) yield Apply(Ident("_cleanup"), List(Ident(v)))
         Block((tree :: cleanups).reverse: _*)
