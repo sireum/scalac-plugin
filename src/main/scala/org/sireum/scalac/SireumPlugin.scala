@@ -45,27 +45,61 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
   override val runsRightAfter = Some("parser")
   override val runsAfter: List[String] = runsRightAfter.toList
   override val runsBefore: List[String] = List[String]("namer")
-  val dollar = Ident("$")
+  def isDollar(t: Tree): Boolean = t match {
+    case q"$$" => true
+    case _ => false
+  }
+  val unitCons = Literal(Constant(()))
 
   final class Transformer(unit: CompilationUnit,
+                          var methodName: Option[TermName],
                           var declaredVars: List[String]) extends TypingTransformer(unit) {
     override def transform(tree: global.Tree): global.Tree = tree match {
-      case tree: Block =>
+      case tree: DefDef =>
+        val mn = methodName
         val dvs = declaredVars
+        methodName = Some(tree.name)
+        declaredVars = List()
         val r = super.transform(tree)
         declaredVars = dvs
+        methodName = mn
         r
-      case tree: ValDef =>
-        declaredVars ::= tree.name.decoded
-        if (tree.rhs == EmptyTree || tree.rhs == dollar) tree
-        else tree.copy(rhs = Apply(Ident("_assign"), List(tree.rhs)))
-      case tree: Assign =>
-        tree.copy(rhs = Apply(Ident("_assign"), List(tree.rhs)))
-      case tree@Apply(Select(_, TermName("update")), List(t2, t3)) =>
-        tree.copy(args = List(t2, Apply(Ident("_assign"), List(t3))))
-      case tree: Return =>
-        val cleanups = for (v <- declaredVars) yield Apply(Ident("_cleanup"), List(Ident(v)))
-        Block((tree :: cleanups).reverse: _*)
+      case q"{ ..$stats }" =>
+        val dvs = declaredVars
+        val r = super.transform(tree)
+        val diffVars = declaredVars.take(declaredVars.size - dvs.size)
+        val r3 = if (diffVars.nonEmpty) {
+          //println(s"Here $diffVars")
+          val cs: List[Tree] =
+            (for (v <- declaredVars.take(declaredVars.size - dvs.size))
+              yield q"_cleanup(${Ident(v)})").reverse
+          declaredVars = dvs
+          val r2 = r match {
+            case r: Block =>
+              r.expr match {
+                case _: Assign | _: ValDef => Block(r.stats ++ (r.expr :: cs), unitCons)
+                case _ => Block(r.stats ++ cs, r.expr)
+              }
+          }
+          // println(showCode(r2))
+          r2
+        } else r
+        //println(showCode(r3))
+        r3
+      case q"$mods val ${tname: TermName}: $tpt = $expr" =>
+        if (methodName.nonEmpty)
+          declaredVars = tname.decoded :: declaredVars
+        if (!(expr == EmptyTree || isDollar(expr.asInstanceOf[Tree])))
+          return q"$mods var $tname: $tpt = _assign($expr)"
+        tree
+      case q"$mods var ${tname: TermName}: $tpt = $expr" =>
+        if (methodName.nonEmpty)
+          declaredVars = tname.decoded :: declaredVars
+        if (!(expr == EmptyTree || isDollar(expr.asInstanceOf[Tree])))
+          return q"$mods var $tname: $tpt = _assign($expr)"
+        tree
+      case q"$lhs = $rhs" => q"$lhs = _assign($rhs)"
+      case q"$expr1(..$exprs2) = $expr" => q"$expr1(..$exprs2) = _assign($expr)"
       case _ => super.transform(tree)
     }
   }
@@ -74,13 +108,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     def apply(unit: CompilationUnit): Unit = {
       var isSireum = unit.source.file.hasExtension("logika") || (unit.source.file.hasExtension("sc") &&
         (unit.body.children.headOption match {
-          case Some(x: Import) if x.selectors == List(ImportSelector.wild) =>
-            x.expr match {
-              case Select(Ident(org), sireum) => org.decoded == "org" && sireum.decoded == "sireum"
-              case Select(Select(Ident(org), sireum), logika) =>
-                org.decoded == "org" && sireum.decoded == "sireum" && logika.decoded == "logika"
-              case _ => false
-            }
+          case Some(x) if x == q"import org.sireum._" || x == q"import org.sireum.logika._" => true
           case _ => false
         }))
       if (!isSireum) {
@@ -94,9 +122,9 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           }
         }
         val firstLine = sb.toString
-        isSireum = "//#Sireum" == firstLine || "//#Logika" == firstLine
+        isSireum = "//#Sireum" == firstLine
       }
-      if (isSireum) unit.body = new Transformer(unit, List()).transform(unit.body)
+      if (isSireum) unit.body = new Transformer(unit, None, List()).transform(unit.body)
     }
   }
 }
