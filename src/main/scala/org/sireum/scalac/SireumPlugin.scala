@@ -51,12 +51,6 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     case _ => false
   }
 
-  def isUninit(t: Any): Boolean = t match {
-    case q"??" => true
-    case _ => false
-  }
-
-
   val unitCons = Literal(Constant(()))
 
   final class Transformer(unit: CompilationUnit,
