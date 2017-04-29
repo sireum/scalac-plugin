@@ -72,7 +72,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         new Transformer(unit, inTrait = true).sup(tree)
       case tree: DefDef =>
         tree.rhs match {
-          case rhs@Apply(sc@Select(Apply(Ident(TermName("StringContext")), List(Literal(Constant(_: String)))), TermName("l")), List()) =>
+          case rhs@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) =>
             if (inTrait) tree.copy(rhs = EmptyTree)
             else {
               val sc2 = sc.copy(name = TermName("lDef"))
@@ -83,9 +83,9 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
               tree2.pos = tree.pos
               tree2
             }
-          case _ => tree
+          case _ => sup(tree)
         }
-      case tree@Apply(sc@Select(Apply(Ident(TermName("StringContext")), List(Literal(Constant(_: String)))), TermName("l")), List()) =>
+      case tree@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) =>
         val sc2 = sc.copy(name = TermName("lUnit"))
         sc2.pos = sc.pos
         val tree2 = tree.copy(fun = sc2)
@@ -115,42 +115,13 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       case q"$expr1(..$exprs2) = $expr" =>
         q"${trans(expr1)}(..${exprs2.map(trans)}) = _assign(${trans(expr)})"
       case q"(..$exprs)" if exprs.size > 1 => q"(..${exprs.map(e => q"_assign(${trans(e)})")})"
-      case q"$mods val ${tname: TermName}: $tpt = $expr" =>
+      case q"$mods val $pat: $tpt = $expr" =>
         if (!(expr == EmptyTree || isDollar(expr)))
-          q"$mods var $tname: $tpt = _assign(${trans(expr)})"
+          q"$mods var $pat: $tpt = _assign(${trans(expr)})"
         else tree
-      case q"$mods var ${tname: TermName}: $tpt = $expr" =>
-        if (isUninit(expr)) {
-          tpt match {
-            case Ident(TypeName(n)) => n match {
-              case "B" => q"$mods var $tname: $tpt = F"
-              case "Z" => q"""$mods var $tname: $tpt = z"0""""
-              case "Z8" => q"""$mods var $tname: $tpt = z8"0""""
-              case "Z16" => q"""$mods var $tname: $tpt = z16"0""""
-              case "Z32" => q"""$mods var $tname: $tpt = z32"0""""
-              case "Z64" => q"""$mods var $tname: $tpt = z64"0""""
-              case "N" => q"""$mods var $tname: $tpt = n"0""""
-              case "N8" => q"""$mods var $tname: $tpt = n8"0""""
-              case "N16" => q"""$mods var $tname: $tpt = n16"0""""
-              case "N32" => q"""$mods var $tname: $tpt = n32"0""""
-              case "N64" => q"""$mods var $tname: $tpt = n64"0""""
-              case "S8" => q"""$mods var $tname: $tpt = s8"0""""
-              case "S16" => q"""$mods var $tname: $tpt = s16"0""""
-              case "S32" => q"""$mods var $tname: $tpt = s32"0""""
-              case "S64" => q"""$mods var $tname: $tpt = s64"0""""
-              case "U8" => q"""$mods var $tname: $tpt = u8"0""""
-              case "U16" => q"""$mods var $tname: $tpt = u16"0""""
-              case "U32" => q"""$mods var $tname: $tpt = u32"0""""
-              case "U64" => q"""$mods var $tname: $tpt = u64"0""""
-              case "F32" => q"""$mods var $tname: $tpt = f32"0.0""""
-              case "F64" => q"""$mods var $tname: $tpt = f64"0.0""""
-              case "R" => q"""$mods var $tname: $tpt = r"0.0""""
-              case _ => q"$mods var $tname: $tpt = null"
-            }
-            case _ => q"$mods var $tname: $tpt = null"
-          }
-        } else if (!(expr == EmptyTree || isDollar(expr)))
-          q"$mods var $tname: $tpt = _assign(${trans(expr)})"
+      case q"$mods var $pat: $tpt = $expr" =>
+        if (!(expr == EmptyTree || isDollar(expr)))
+          q"$mods var $pat: $tpt = _assign(${trans(expr)})"
         else tree
       case _ => super.transform(tree)
     }
