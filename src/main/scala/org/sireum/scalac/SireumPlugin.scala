@@ -67,17 +67,32 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
     override def transform(tree: global.Tree): global.Tree = tree match {
       case Apply(Select(Apply(Ident(TermName("StringContext")), _), TermName("s")), _) => tree
-      case Apply(Select(Ident(TermName("tup")), TermName("update")), _) => tree
+      case tree@Apply(Select(Ident(TermName("tup")), TermName("update")), l) => tree.copy(args = l.dropRight(1) ++ l.takeRight(1).map(transform))
       case q"$_ trait $_[..$_] extends { ..$_ } with ..$_ { $_ => ..$_ }" =>
         new Transformer(unit, inTrait = true).sup(tree)
-      case tree: DefDef if inTrait =>
+      case tree: DefDef =>
         tree.rhs match {
-          case Apply(Select(Apply(Ident(TermName("StringContext")), List(Literal(Constant(_: String)))), TermName("c")), List()) =>
-            tree.copy(rhs = EmptyTree)
+          case rhs@Apply(sc@Select(Apply(Ident(TermName("StringContext")), List(Literal(Constant(_: String)))), TermName("l")), List()) =>
+            if (inTrait) tree.copy(rhs = EmptyTree)
+            else {
+              val sc2 = sc.copy(name = TermName("lDef"))
+              sc2.pos = sc.pos
+              val rhs2 = rhs.copy(fun = sc2)
+              rhs2.pos = rhs.pos
+              val tree2 = tree.copy(rhs = rhs2)
+              tree2.pos = tree.pos
+              tree2
+            }
           case _ => tree
         }
-      case Literal(Constant(n: Int)) => q"StringContext(${BigInt(n).toString}).z()"
-      case Literal(Constant(n: Long)) => q"StringContext(${BigInt(n).toString}).z()"
+      case tree@Apply(sc@Select(Apply(Ident(TermName("StringContext")), List(Literal(Constant(_: String)))), TermName("l")), List()) =>
+        val sc2 = sc.copy(name = TermName("lUnit"))
+        sc2.pos = sc.pos
+        val tree2 = tree.copy(fun = sc2)
+        tree2.pos = tree.pos
+        tree2
+      case Literal(Constant(n: Int)) => q"StringContext(${n.toString}).z()"
+      case Literal(Constant(n: Long)) => q"StringContext(${n.toString}).z()"
       case tree: CaseDef =>
         val g = transform(tree.guard)
         val b = transform(tree.body)
