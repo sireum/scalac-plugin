@@ -61,7 +61,8 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
     override def transform(tree: global.Tree): global.Tree = tree match {
       case Apply(Select(Apply(Ident(TermName("StringContext")), _), TermName("s")), _) => tree
-      case tree@Apply(Select(Ident(TermName("tup")), TermName("update")), l) => tree.copy(args = l.dropRight(1) ++ l.takeRight(1).map(transform))
+      case tree@Apply(Select(Ident(TermName("pat")), TermName("update")), l) =>
+        tree.copy(args = l.dropRight(1) ++ l.takeRight(1).map(transform))
       case q"$_ trait $_[..$_] extends { ..$_ } with ..$_ { $_ => ..$_ }" =>
         new Transformer(unit, inTrait = true).sup(tree)
       case tree: DefDef =>
