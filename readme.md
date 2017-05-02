@@ -12,6 +12,12 @@ right after the scalac parsing phase if the ``.scala`` file's first line (withou
 
   (preserved as is, i.e., unaffected by other transformations below)
 
+* ``up( ... ) = <exp>`` ⟹ ``up( ... ) = <exp2>``
+
+  where ``<exp2>`` is *transform*(``<exp>``)
+  
+  (``up( ... )`` is preserved as is)
+
 * ``pat( ... ) = <exp>`` ⟹ ``pat( ... ) = <exp2>``
 
   where ``<exp2>`` is *transform*(``<exp>``)
