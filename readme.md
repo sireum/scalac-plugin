@@ -26,7 +26,7 @@ right after the scalac parsing phase if the ``.scala`` file's first line (withou
 
 * ``def ... = l"""..."""`` ⟹ ``def ...``
 
-   if in a trait  
+  if in a trait  
 
 * ``def ... = l""" ... """`` ⟹ ``def ... = lDef""" ... """``
   
