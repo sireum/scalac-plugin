@@ -58,7 +58,7 @@ right after the scalac parsing phase if the ``.scala`` file's first line (withou
   
   * *transform*(``<arg>``)
   
-    if ``<arg>`` is a literal
+    if ``<arg>`` is a literal or a function (``... => ...``)
    
   * ``<id> = `` ``_assign (`` *transform*(``<exp>``) ``)``
   
@@ -98,6 +98,15 @@ right after the scalac parsing phase if the ``.scala`` file's first line (withou
   
   (``<pat>`` is preserved as is)
 
+Where *assign*(``<exp>``) is defined as:
+
+* *transform*(``<exp>``)
+
+  if ``<exp>`` is a literal or a function
+  
+* ``_assign(`` *transform*(``<exp>``) ``)``
+
+  otherwise
 
 # To Do
 

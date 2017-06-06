@@ -67,6 +67,12 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
     def trans(tree: Any): global.Tree = transform(tree.asInstanceOf[global.Tree])
 
+    def assign(tree: Any): global.Tree = tree match {
+      case _: Literal => trans(tree.asInstanceOf[global.Tree])
+      case _: Function => trans(tree.asInstanceOf[global.Tree])
+      case _ => q"_assign(${trans(tree)})"
+    }
+
     def pos(tree: Any): global.Position = tree.asInstanceOf[global.Tree].pos
 
     override def transform(tree: global.Tree): global.Tree = tree match {
@@ -100,25 +106,24 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         var changed = false
         val r = tree.copy(args = for (arg <- tree.args) yield arg match {
           case arg: Literal => val r = transform(arg); changed ||= r ne arg; r
+          case arg: Function => val r = transform(arg); changed ||= r ne arg; r
           case arg: AssignOrNamedArg =>
             changed = true
-            arg.copy(rhs = q"_assign(${transform(arg.rhs)})".copyPos(arg.rhs)).copyPos(arg)
-          case _ => changed = true; q"_assign(${transform(arg)})".copyPos(arg)
+            arg.copy(rhs = assign(arg.rhs).copyPos(arg.rhs)).copyPos(arg)
+          case _ => changed = true; assign(arg).copyPos(arg)
         })
         if (changed) r.copyPos(tree) else tree
       case tree: Assign =>
-        tree.copy(rhs = q"_assign(${transform(tree.rhs)})".copyPos(tree.rhs)).copyPos(tree)
+        tree.copy(rhs = assign(tree.rhs).copyPos(tree.rhs)).copyPos(tree)
       case q"$expr1(..$exprs2) = $expr" =>
-        q"${trans(expr1)}(..${exprs2.map(trans)}) = ${q"_assign(${trans(expr)})".copyPos(expr)}".copyPos(tree)
+        q"${trans(expr1)}(..${exprs2.map(trans)}) = ${assign(expr).copyPos(expr)}".copyPos(tree)
       case q"(..$exprs)" if exprs.size > 1 =>
-        q"(..${exprs.map(e => q"_assign(${trans(e)})".copyPos(e))})".copyPos(tree)
+        q"(..${exprs.map(e => assign(e).copyPos(e))})".copyPos(tree)
       case q"$mods val $pat: $tpt = $expr" =>
-        if (!(expr == EmptyTree || isDollar(expr)))
-          q"$mods var $pat: $tpt = ${q"_assign(${trans(expr)})".copyPos(expr)}"
+        if (!(expr == EmptyTree || isDollar(expr))) q"$mods var $pat: $tpt = ${assign(expr).copyPos(expr)}"
         else tree
       case q"$mods var $pat: $tpt = $expr" =>
-        if (!(expr == EmptyTree || isDollar(expr)))
-          q"$mods var $pat: $tpt = ${q"_assign(${trans(expr)})".copyPos(expr)}"
+        if (!(expr == EmptyTree || isDollar(expr))) q"$mods var $pat: $tpt = ${assign(expr).copyPos(expr)}"
         else tree
       case _ =>
         val tree2 = super.transform(tree)
