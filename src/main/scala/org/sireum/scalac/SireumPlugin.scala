@@ -104,14 +104,15 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         else tree
       case tree: Apply if tree.args.nonEmpty =>
         var changed = false
-        val r = tree.copy(args = for (arg <- tree.args) yield arg match {
-          case arg: Literal => val r = transform(arg); changed ||= r ne arg; r
-          case arg: Function => val r = transform(arg); changed ||= r ne arg; r
-          case arg: AssignOrNamedArg =>
-            changed = true
-            arg.copy(rhs = assign(arg.rhs).copyPos(arg.rhs)).copyPos(arg)
-          case _ => changed = true; assign(arg).copyPos(arg)
-        })
+        val r = tree.copy(fun = { val r = transform(tree.fun); changed ||= r ne tree.fun; r },
+          args = for (arg <- tree.args) yield arg match {
+            case arg: Literal => val r = transform(arg); changed ||= r ne arg; r
+            case arg: Function => val r = transform(arg); changed ||= r ne arg; r
+            case arg: AssignOrNamedArg =>
+              changed = true
+              arg.copy(rhs = assign(arg.rhs).copyPos(arg.rhs)).copyPos(arg)
+            case _ => changed = true; assign(arg).copyPos(arg)
+          })
         if (changed) r.copyPos(tree) else tree
       case tree: Assign =>
         tree.copy(rhs = assign(tree.rhs).copyPos(tree.rhs)).copyPos(tree)
