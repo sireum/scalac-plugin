@@ -51,6 +51,8 @@ right after the scalac parsing phase if the ``.scala`` file's first line (withou
   * ``<body2>`` is *transform*(``<body>``)
   
   (``<pat>`` is preserved as is)
+  
+* ``<exp>.hash`` ⟹ ``_Z(<exp>.hashCode)``
 
 * ``<exp>(<arg>, ..., <arg>)`` ⟹ ``<exp>(<arg2>, ..., <arg2>)``
 

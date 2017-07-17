@@ -92,6 +92,8 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             else tree.copy(rhs = rhs.copy(fun = sc.copy(name = TermName("lDef")).copyPos(sc)).copyPos(rhs)).copyPos(tree)
           case _ => sup(tree)
         }
+      case tree@Select(_, TermName("hash")) =>
+        Apply(Ident(TermName("_Z")).copyPos(tree), List(transform(tree))).copyPos(tree)
       case tree@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) =>
         tree.copy(fun = sc.copy(name = TermName("lUnit")).copyPos(sc)).copyPos(tree)
       case Literal(Constant(n: Int)) => q"StringContext(${n.toString}).z()".copyPos(tree)
