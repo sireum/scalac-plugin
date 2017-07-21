@@ -37,6 +37,12 @@ class SireumPlugin(override val global: Global) extends Plugin {
   override val components: List[PluginComponent] = List(new SireumComponent(global))
 }
 
+object SireumComponent {
+  val ops = Set("+", "-", "*", "/", "%", "==", "!=", "<", ">", ">=", "<=", "&", "|", "|^", "+:", ":+", "++", "--")
+}
+
+import SireumComponent._
+
 final class SireumComponent(val global: Global) extends PluginComponent with TypingTransformers {
 
   implicit class CopyPos(val t: Any) {
@@ -62,72 +68,186 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
   val unitCons = Literal(Constant(()))
 
   final class Transformer(unit: CompilationUnit,
+                          var inExp: Boolean,
                           var inTrait: Boolean) extends TypingTransformer(unit) {
     def sup(tree: global.Tree): global.Tree = super.transform(tree)
 
     def trans(tree: Any): global.Tree = transform(tree.asInstanceOf[global.Tree])
 
+    def assignNoTrans(tree: global.Tree) = q"_assign($tree)".copyPos(tree)
+
     def assign(tree: Any): global.Tree = tree match {
-      case _: Literal => trans(tree.asInstanceOf[global.Tree])
-      case _: Function => trans(tree.asInstanceOf[global.Tree])
-      case _ => q"_assign(${trans(tree)})"
+      case _: Literal => trans(tree)
+      case _: Function => trans(tree)
+      case Apply(Select(Apply(Ident(TermName("StringContext")), _), _), _) => trans(tree)
+      case _ => assignNoTrans(trans(tree))
     }
 
     def pos(tree: Any): global.Position = tree.asInstanceOf[global.Tree].pos
 
+    def transformApply(tree: Apply): global.Tree = {
+      def hasInnerApply(tree: global.Tree): Boolean = tree match {
+        case _: Apply => true
+        case q"(..$exprs)" if exprs.size > 1 =>
+          for (e <- exprs) {
+            if (hasInnerApply(e.asInstanceOf[global.Tree])) return true
+          }
+          false
+        case q"$_.super[$_].$_" => false
+        case q"new { ..$_ } with ..$_ { $_ => ..$_ }" => false
+        case tree: Typed => hasInnerApply(tree.expr)
+        case tree: TypeApply => hasInnerApply(tree.fun)
+        case tree: Select => hasInnerApply(tree.qualifier)
+        case _: This | _: Literal | _: Ident | _: Function | EmptyTree => false
+      }
+
+      val oldInExp = inExp
+      inExp = true
+      var changed = false
+      val shouldNotAssign = (tree match {
+        case Apply(Select(_, op), _) if ops.contains(op.decoded) => true
+        case _ => oldInExp
+      }) || hasInnerApply(tree.fun)
+      val r = tree.copy(fun = {
+        val r = transform(tree.fun); changed ||= r ne tree.fun; r
+      },
+        args = for (arg <- tree.args) yield arg match {
+          case arg: Literal => val r = transform(arg); changed ||= r ne arg; r
+          case arg: Function => val r = transform(arg); changed ||= r ne arg; r
+          case arg@Apply(Select(Apply(Ident(TermName("StringContext")), _), _), _) =>
+            val r = transform(arg); changed ||= r ne arg; r
+          case arg: AssignOrNamedArg =>
+            changed = true
+            if (shouldNotAssign) arg.copy(rhs = transform(arg.rhs)).copyPos(arg)
+            else arg.copy(rhs = assign(arg.rhs)).copyPos(arg)
+          case _ => changed = true; if (shouldNotAssign) transform(arg) else assign(arg)
+        })
+      inExp = oldInExp
+      if (changed) r.copyPos(tree) else tree
+    }
+
     override def transform(tree: global.Tree): global.Tree = tree match {
-      case Apply(Select(Apply(Ident(TermName("StringContext")), _), TermName("s")), _) => tree
-      case tree@Apply(Select(Ident(TermName(f)), TermName("update")), l) if f == "up" || f == "pat" =>
-        tree.copy(args = l.dropRight(1) ++ l.takeRight(1).map(transform)).copyPos(tree)
+      case tree: DefDef =>
+        tree.rhs match {
+          case rhs@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) =>
+            if (inTrait) tree.copy(rhs = EmptyTree).copyPos(tree)
+            else tree.copy(rhs = rhs.copy(fun = sc.copy(name = TermName("lDef")).copyPos(sc)).copyPos(rhs)).copyPos(tree)
+          case _ =>
+            sup(tree)
+        }
+      case tree@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) =>
+        tree.copy(fun = sc.copy(name = TermName("lUnit")).copyPos(sc)).copyPos(tree)
+      case tree@Apply(Select(Ident(TermName("scala")), TermName("Symbol")), _) => tree
+      case tree@Apply(Ident(TermName("StringContext")), _) => tree
       case q"$_ trait $_[..$_] extends { ..$_ } with ..$_ { $_ => ..$_ }" =>
         val oldInTrait = inTrait
         inTrait = true
         val tree2 = sup(tree)
         inTrait = oldInTrait
         tree2.copyPos(tree)
-      case tree: DefDef =>
-        tree.rhs match {
-          case rhs@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) =>
-            if (inTrait) tree.copy(rhs = EmptyTree).copyPos(tree)
-            else tree.copy(rhs = rhs.copy(fun = sc.copy(name = TermName("lDef")).copyPos(sc)).copyPos(rhs)).copyPos(tree)
-          case _ => sup(tree)
-        }
       case tree@Select(o, TermName("hash")) =>
         Apply(Ident(TermName("_Z")).copyPos(tree), List(Select(transform(o), TermName("hashCode")).copyPos(tree))).copyPos(tree)
-      case tree@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) =>
-        tree.copy(fun = sc.copy(name = TermName("lUnit")).copyPos(sc)).copyPos(tree)
-      case Literal(Constant(n: Int)) => q"StringContext(${n.toString}).z()".copyPos(tree)
-      case Literal(Constant(n: Long)) => q"StringContext(${n.toString}).z()".copyPos(tree)
-      case tree: CaseDef =>
-        val g = transform(tree.guard)
-        val b = transform(tree.body)
-        if ((g ne tree.guard) || (b ne tree.body))
-          tree.copy(guard = transform(tree.guard), body = transform(tree.body)).copyPos(tree)
-        else tree
-      case tree: Apply if tree.args.nonEmpty =>
-        var changed = false
-        val r = tree.copy(fun = { val r = transform(tree.fun); changed ||= r ne tree.fun; r },
-          args = for (arg <- tree.args) yield arg match {
-            case arg: Literal => val r = transform(arg); changed ||= r ne arg; r
-            case arg: Function => val r = transform(arg); changed ||= r ne arg; r
-            case arg: AssignOrNamedArg =>
-              changed = true
-              arg.copy(rhs = assign(arg.rhs).copyPos(arg.rhs)).copyPos(arg)
-            case _ => changed = true; assign(arg).copyPos(arg)
-          })
-        if (changed) r.copyPos(tree) else tree
+      case Literal(Constant(true)) => q"T".copyPos(tree)
+      case Literal(Constant(false)) => q"F".copyPos(tree)
+      case Literal(Constant(_: Char)) => q"org.sireum._2C($tree)".copyPos(tree)
+      case Literal(Constant(o: Int)) => q"StringContext(${o.toString}).z()".copyPos(tree)
+      case Literal(Constant(o: Long)) => q"StringContext(${o.toString}).z()".copyPos(tree)
+      case Literal(Constant(o: Float)) => q"StringContext(${o.toString}).f32()".copyPos(tree)
+      case Literal(Constant(o: Double)) => q"StringContext(${o.toString}).f64()".copyPos(tree)
+      case Literal(Constant(_: String)) => q"org.sireum._2String($tree)".copyPos(tree)
+      case q"$mods val $pat: $tpt = $rhs" =>
+        if (!(rhs == EmptyTree || isDollar(rhs))) rhs match {
+          case rhs: Apply => q"$mods val $pat: $tpt = ${assignNoTrans(transformApply(rhs))}"
+          case _ => q"$mods val $pat: $tpt = ${assign(rhs)}"
+        } else tree
+      case q"$mods var $pat: $tpt = $rhs" =>
+        if (!(rhs == EmptyTree || isDollar(rhs))) rhs match {
+          case rhs: Apply => q"$mods var $pat: $tpt = ${assignNoTrans(transformApply(rhs))}"
+          case _ => q"$mods var $pat: $tpt = ${assign(rhs)}"
+        } else tree
       case tree: Assign =>
-        tree.copy(rhs = assign(tree.rhs).copyPos(tree.rhs)).copyPos(tree)
+        tree.rhs match {
+          case rhs: Apply => tree.copy(rhs = assignNoTrans(transformApply(rhs))).copyPos(tree)
+          case rhs => tree.copy(rhs = assign(rhs)).copyPos(tree)
+        }
+      case tree@Apply(Select(Ident(TermName(f)), TermName("update")), l) if f == "up" || f == "pat" =>
+        tree.copy(args = l.dropRight(1) ++ l.takeRight(1).map(transform)).copyPos(tree)
       case q"$expr1(..$exprs2) = $expr" =>
-        q"${trans(expr1)}(..${exprs2.map(trans)}) = ${assign(expr).copyPos(expr)}".copyPos(tree)
-      case q"(..$exprs)" if exprs.size > 1 =>
-        q"(..${exprs.map(e => assign(e).copyPos(e))})".copyPos(tree)
-      case q"$mods val $pat: $tpt = $expr" =>
-        if (!(expr == EmptyTree || isDollar(expr))) q"$mods var $pat: $tpt = ${assign(expr).copyPos(expr)}"
-        else tree
-      case q"$mods var $pat: $tpt = $expr" =>
-        if (!(expr == EmptyTree || isDollar(expr))) q"$mods var $pat: $tpt = ${assign(expr).copyPos(expr)}"
-        else tree
+        expr match {
+          case rhs: Apply => q"${trans(expr1)}(..${exprs2.map(trans)}) = ${assignNoTrans(transformApply(rhs))}".copyPos(tree)
+          case _ => q"${trans(expr1)}(..${exprs2.map(trans)}) = ${assign(expr)}".copyPos(tree)
+        }
+      case tree: If =>
+        val oldInExp = inExp
+        inExp = true
+        val cond = transform(tree.cond)
+        inExp = oldInExp
+        val thenp = transform(tree.thenp)
+        val elsep = transform(tree.elsep)
+        if ((cond ne tree.cond) || (thenp ne tree.thenp) || (elsep ne tree.elsep)) If(cond, thenp, elsep).copyPos(tree) else tree
+      case tree@q"while ($cond) $body" =>
+        val oldInExp = inExp
+        inExp = true
+        val newCond = trans(cond)
+        inExp = oldInExp
+        val newBody = trans(body)
+        if ((cond ne newCond) || (body ne newBody)) q"while ($newCond) $newBody".copyPos(tree) else tree
+      case tree@q"do $body while ($cond)" =>
+        val oldInExp = inExp
+        inExp = true
+        val newCond = trans(cond)
+        inExp = oldInExp
+        val newBody = trans(body)
+        if ((cond ne newCond) || (body ne newBody)) q"do $newBody while ($newCond)".copyPos(tree) else tree
+      case tree@q"for (..$enums) $body" =>
+        val oldInExp = inExp
+        inExp = true
+        var hasChanged = false
+        val newEnums = for (enum <- enums) yield {
+          val newEnum = trans(enum)
+          if (enum ne newEnum) hasChanged = true
+          newEnum
+        }
+        inExp = oldInExp
+        val newBody = trans(body)
+        if (hasChanged || (body ne newBody)) q"for (..$newEnums) $newBody".copyPos(tree) else tree
+      case tree@q"for (..$enums) yield $expr" =>
+        val oldInExp = inExp
+        inExp = true
+        var hasChanged = false
+        val newEnums = for (enum <- enums) yield {
+          val newEnum = trans(enum)
+          if (enum ne newEnum) hasChanged = true
+          newEnum
+        }
+        inExp = oldInExp
+        val newExpr = trans(expr)
+        if (hasChanged || (expr ne newExpr)) q"for (..$newEnums) yield $newExpr".copyPos(tree) else tree
+      case q"$expr match { case ..$cases }" =>
+        val oldInExp = inExp
+        inExp = true
+        val newExpr = trans(expr)
+        inExp = oldInExp
+        var hasChanged = false
+        val newCases = for (c <- cases) yield {
+          val nc = trans(c)
+          if (c ne nc) hasChanged = true
+          nc
+        }
+        if (hasChanged || (expr ne newExpr)) q"$newExpr match { case ..$newCases }".copyPos(tree) else tree
+      case tree: CaseDef =>
+        val oldInExp = inExp
+        inExp = true
+        val g = transform(tree.guard)
+        inExp = oldInExp
+        val b = transform(tree.body)
+        if ((g ne tree.guard) || (b ne tree.body)) tree.copy(guard = g, body = b).copyPos(tree) else tree
+      case q"(..$exprs)" if exprs.size > 1 => q"(..${exprs.map(assign)})".copyPos(tree)
+      //case b: Block =>
+      //  val r = sup(b)
+      //  println(showCode(r))
+      //  r
+      case tree: Apply => transformApply(tree)
       case _ =>
         val tree2 = super.transform(tree)
 //        if (tree2 ne tree) {
@@ -157,7 +277,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         val firstLine = sb.toString
         isSireum = firstLine.contains("#Sireum")
       }
-      if (isSireum) unit.body = new Transformer(unit, inTrait = false).transform(unit.body)
+      if (isSireum) unit.body = new Transformer(unit, inExp = false, inTrait = false).transform(unit.body)
     }
   }
 }
