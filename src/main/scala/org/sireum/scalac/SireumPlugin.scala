@@ -157,13 +157,13 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       case Literal(Constant(_: String)) => q"org.sireum._2String($tree)".copyPos(tree)
       case q"$mods val $pat: $tpt = $rhs" =>
         if (!(rhs == EmptyTree || isDollar(rhs))) rhs match {
-          case rhs: Apply => q"$mods val $pat: $tpt = ${assignNoTrans(transformApply(rhs))}"
-          case _ => q"$mods val $pat: $tpt = ${assign(rhs)}"
+          case rhs: Apply => q"$mods val $pat: $tpt = ${assignNoTrans(transformApply(rhs))}".copyPos(tree)
+          case _ => q"$mods val $pat: $tpt = ${assign(rhs)}".copyPos(tree)
         } else tree
       case q"$mods var $pat: $tpt = $rhs" =>
         if (!(rhs == EmptyTree || isDollar(rhs))) rhs match {
-          case rhs: Apply => q"$mods var $pat: $tpt = ${assignNoTrans(transformApply(rhs))}"
-          case _ => q"$mods var $pat: $tpt = ${assign(rhs)}"
+          case rhs: Apply => q"$mods var $pat: $tpt = ${assignNoTrans(transformApply(rhs))}".copyPos(tree)
+          case _ => q"$mods var $pat: $tpt = ${assign(rhs)}".copyPos(tree)
         } else tree
       case tree: Assign =>
         tree.rhs match {
