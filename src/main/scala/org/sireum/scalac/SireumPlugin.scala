@@ -71,6 +71,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
   final class Transformer(unit: CompilationUnit,
                           var inExp: Boolean,
+                          var inPat: Boolean,
                           var inTrait: Boolean) extends TypingTransformer(unit) {
     val seen: util.IdentityHashMap[global.Tree, Boolean] = new util.IdentityHashMap(16 * 1024)
 
@@ -78,7 +79,8 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
     def trans(tree: Any): global.Tree = transform(tree.asInstanceOf[global.Tree])
 
-    def assignNoTrans(tree: global.Tree) = q"_assign($tree)".copyPos(tree)
+    def assignNoTrans(tree: global.Tree) =
+      if (inPat) tree else q"_assign($tree)".copyPos(tree)
 
     def assign(tree: Any): global.Tree = tree match {
       case _: Literal => trans(tree)
@@ -158,7 +160,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             case _ =>
               sup(tree)
           }
-        case tree@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) =>
+        case tree@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) if !inPat =>
           tree.copy(fun = sc.copy(name = TermName("lUnit")).copyPos(sc)).copyPos(tree)
         case tree@Apply(Select(Ident(TermName("scala")), TermName("Symbol")), _) => tree
         case tree@Apply(Ident(TermName("StringContext")), _) => tree
@@ -168,16 +170,22 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           val tree2 = sup(tree)
           inTrait = oldInTrait
           tree2.copyPos(tree)
-        case tree@Select(o, TermName("hash")) =>
+        case tree@Select(o, TermName("hash")) if !inPat =>
           Apply(Ident(TermName("_Z")).copyPos(tree), List(Select(transform(o), TermName("hashCode")).copyPos(tree))).copyPos(tree)
         case Literal(Constant(true)) => q"T".copyPos(tree)
         case Literal(Constant(false)) => q"F".copyPos(tree)
-        case Literal(Constant(_: Char)) => q"org.sireum._2C($tree)".copyPos(tree)
-        case Literal(Constant(o: Int)) => q"StringContext(${o.toString}).z()".copyPos(tree)
-        case Literal(Constant(o: Long)) => q"StringContext(${o.toString}).z()".copyPos(tree)
-        case Literal(Constant(o: Float)) => q"StringContext(${o.toString}).f32()".copyPos(tree)
-        case Literal(Constant(o: Double)) => q"StringContext(${o.toString}).f64()".copyPos(tree)
-        case Literal(Constant(_: String)) => q"org.sireum._2String($tree)".copyPos(tree)
+        case Literal(Constant(_: Char)) =>
+          (if (inPat) pq"_XChar($tree)" else q"_2C($tree)").copyPos(tree)
+        case Literal(Constant(o: Int)) =>
+          (if (inPat) pq"_XInt($tree)" else q"StringContext(${o.toString}).z()").copyPos(tree)
+        case Literal(Constant(o: Long)) =>
+          (if (inPat) pq"_XLong($tree)" else q"StringContext(${o.toString}).z()").copyPos(tree)
+        case Literal(Constant(o: Float)) =>
+          (if (inPat) pq"_XFloat($tree)" else q"StringContext(${o.toString}).f32()").copyPos(tree)
+        case Literal(Constant(o: Double)) =>
+          (if (inPat) pq"_XDouble($tree)" else q"StringContext(${o.toString}).f64()").copyPos(tree)
+        case Literal(Constant(_: String)) =>
+          (if (inPat) pq"_XString($tree)" else q"_2String($tree)").copyPos(tree)
         case q"$mods val $pat: $tpt = $rhs" =>
           if (!(rhs == EmptyTree || isDollar(rhs))) rhs match {
             case rhs: Apply => q"$mods val $pat: $tpt = ${assignNoTrans(transformApply(rhs))}".copyPos(tree)
@@ -193,7 +201,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             case rhs: Apply => tree.copy(rhs = assignNoTrans(transformApply(rhs))).copyPos(tree)
             case rhs => tree.copy(rhs = assign(rhs)).copyPos(tree)
           }
-        case tree@Apply(Select(Ident(TermName(f)), TermName("update")), l) if f == "up" || f == "pat" =>
+        case tree@Apply(Select(Ident(TermName(f)), TermName("update")), l) if !inPat && (f == "up" || f == "pat") =>
           tree.copy(args = l.dropRight(1) ++ l.takeRight(1).map(transform)).copyPos(tree)
         case q"$expr1(..$exprs2) = $expr" =>
           expr match {
@@ -259,18 +267,22 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           }
           if (hasChanged || (expr ne newExpr)) q"$newExpr match { case ..$newCases }".copyPos(tree) else tree
         case tree: CaseDef =>
+          val oldInPat = inPat
+          inPat = true
+          val pat = transform(tree.pat)
+          inPat = oldInPat
           val oldInExp = inExp
           inExp = true
           val g = transform(tree.guard)
           inExp = oldInExp
           val b = transform(tree.body)
-          if ((g ne tree.guard) || (b ne tree.body)) tree.copy(guard = g, body = b).copyPos(tree) else tree
+          if ((pat ne tree.pat) || (g ne tree.guard) || (b ne tree.body)) tree.copy(pat = pat, guard = g, body = b).copyPos(tree) else tree
         case q"(..$exprs)" if exprs.size > 1 => q"(..${exprs.map(assign)})".copyPos(tree)
         //case b: Block =>
         //  val b2 = sup(b)
         //  println(showCode(b2))
         //  b2
-        case tree: Apply => transformApply(tree)
+        case tree: Apply if !inPat => transformApply(tree)
         case _ =>
           val tree2 = super.transform(tree)
           //        if (tree2 ne tree) {
@@ -306,7 +318,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         isSireum = firstLine.contains("#Sireum")
       }
       if (isSireum) {
-        val t = new Transformer(unit, inExp = false, inTrait = false)
+        val t = new Transformer(unit, inExp = false, inPat = false, inTrait = false)
         unit.body = t.transform(unit.body)
         //println(s"Fix pos seen size ${t.seen.size}: ${unit.source.file.canonicalPath} ")
         t.seen.clear()
