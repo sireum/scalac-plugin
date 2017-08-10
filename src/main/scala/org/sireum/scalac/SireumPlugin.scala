@@ -71,7 +71,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     def trans(tree: Any): global.Tree = transform(tree.asInstanceOf[global.Tree])
 
     def assignNoTrans(tree: global.Tree) =
-      if (inPat) tree else q"_assign($tree)".copyPos(tree)
+      if (inPat) tree else q"$$assign($tree)".copyPos(tree)
 
     def assign(tree: Any): global.Tree = tree match {
       case _: Literal => trans(tree)
@@ -97,9 +97,13 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         case tree@Apply(Select(Ident(TermName("scala")), TermName("Symbol")), _) => tree
         case tree@Apply(Ident(TermName("StringContext")), _) => tree
         case q"$_ trait $_[..$_] extends { ..$_ } with ..$_ { $_ => ..$_ }" =>
+          var classTree = tree.asInstanceOf[ClassDef]
+          if (classTree.mods.hasAnnotationNamed(TypeName("ext"))) {
+            classTree = classTree.copy(name = TypeName(classTree.name.decoded + "$Ext")).copyPos(classTree).asInstanceOf[ClassDef]
+          }
           val oldInTrait = inTrait
           inTrait = true
-          val tree2 = sup(tree)
+          val tree2 = sup(classTree)
           inTrait = oldInTrait
           tree2.copyPos(tree)
         case tree@Select(o, TermName("hash")) if !inPat =>
