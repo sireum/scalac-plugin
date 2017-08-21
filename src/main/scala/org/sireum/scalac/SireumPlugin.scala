@@ -70,8 +70,8 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
     def trans(tree: Any): global.Tree = transform(tree.asInstanceOf[global.Tree])
 
-    def assignNoTrans(tree: global.Tree) =
-      if (inPat) tree else q"$$assign($tree)".copyPos(tree)
+    def assignNoTrans(tree: global.Tree): global.Tree =
+      if (inPat) tree else q"helper.$$assign($tree)".copyPos(tree)
 
     def assign(tree: Any): global.Tree = tree match {
       case _: Literal => trans(tree)
@@ -87,7 +87,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         case tree: DefDef =>
           tree.rhs match {
             case rhs@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) =>
-              if (inTrait) tree.copy(rhs = EmptyTree).copyPos(tree)
+              if (inTrait) tree.copy(rhs = q"$$").copyPos(tree)
               else tree.copy(rhs = rhs.copy(fun = sc.copy(name = TermName("lDef")).copyPos(sc)).copyPos(rhs)).copyPos(tree)
             case _ =>
               sup(tree)
@@ -107,21 +107,21 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           inTrait = oldInTrait
           tree2.copyPos(tree)
         case tree@Select(o, TermName("hash")) if !inPat =>
-          Apply(Ident(TermName("_Z")).copyPos(tree), List(Select(transform(o), TermName("hashCode")).copyPos(tree))).copyPos(tree)
+          Apply(Ident(TermName("Z")).copyPos(tree), List(Select(transform(o), TermName("hashCode")).copyPos(tree))).copyPos(tree)
         case Literal(Constant(true)) => q"T".copyPos(tree)
         case Literal(Constant(false)) => q"F".copyPos(tree)
         case Literal(Constant(_: Char)) =>
-          (if (inPat) pq"_XChar($tree)" else q"_2C($tree)").copyPos(tree)
-        case Literal(Constant(o: Int)) =>
-          (if (inPat) pq"_XInt($tree)" else q"StringContext(${o.toString}).z()").copyPos(tree)
-        case Literal(Constant(o: Long)) =>
-          (if (inPat) pq"_XLong($tree)" else q"StringContext(${o.toString}).z()").copyPos(tree)
-        case Literal(Constant(o: Float)) =>
-          (if (inPat) pq"_XFloat($tree)" else q"StringContext(${o.toString}).f32()").copyPos(tree)
-        case Literal(Constant(o: Double)) =>
-          (if (inPat) pq"_XDouble($tree)" else q"StringContext(${o.toString}).f64()").copyPos(tree)
+          (if (inPat) pq"C($tree)" else q"C($tree)").copyPos(tree)
+        case Literal(Constant(_: Int)) =>
+          (if (inPat) pq"Z.Int($tree)" else q"Z($tree)").copyPos(tree)
+        case Literal(Constant(_: Long)) =>
+          (if (inPat) pq"Z.Long($tree)" else q"Z($tree)").copyPos(tree)
+        case Literal(Constant(_: Float)) =>
+          (if (inPat) pq"F32($tree)" else q"F32($tree)").copyPos(tree)
+        case Literal(Constant(_: Double)) =>
+          (if (inPat) pq"F64($tree)" else q"F64($tree)").copyPos(tree)
         case Literal(Constant(_: String)) =>
-          (if (inPat) pq"_XString($tree)" else q"_2String($tree)").copyPos(tree)
+          (if (inPat) pq"String($tree)" else q"String($tree)").copyPos(tree)
         case q"$mods val $pat: $tpt = $rhs" =>
           if (!(rhs == EmptyTree || isDollar(rhs))) q"$mods val $pat: $tpt = ${assign(rhs)}".copyPos(tree) else tree
         case q"$mods var $pat: $tpt = $rhs" =>
