@@ -1,6 +1,6 @@
 val scalaVer = "2.12.3"
 
-val pluginVersion = "3.1.2"
+val pluginVersion = "3.1.3-SNAPSHOT"
 
 lazy val sireumScalacPlugin = Project(
   id = "sireum-scalac-plugin",
