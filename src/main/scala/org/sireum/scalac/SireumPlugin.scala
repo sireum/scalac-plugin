@@ -25,8 +25,6 @@
 
 package org.sireum.scalac
 
-import java.util
-
 import scala.tools.nsc.Global
 import scala.tools.nsc.Phase
 import scala.tools.nsc.plugins.Plugin
@@ -71,7 +69,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     def trans(tree: Any): global.Tree = transform(tree.asInstanceOf[global.Tree])
 
     def assignNoTrans(tree: global.Tree): global.Tree =
-      if (inPat) tree else q"helper.$$assign($tree)".copyPos(tree)
+      if (inPat) tree else q"_root_.org.sireum.helper.$$assign($tree)".copyPos(tree)
 
     def assign(tree: Any): global.Tree = tree match {
       case _: Literal => trans(tree)
@@ -97,31 +95,30 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         case tree@Apply(Select(Ident(TermName("scala")), TermName("Symbol")), _) => tree
         case tree@Apply(Ident(TermName("StringContext")), _) => tree
         case q"$_ trait $_[..$_] extends { ..$_ } with ..$_ { $_ => ..$_ }" =>
-          var classTree = tree.asInstanceOf[ClassDef]
-          if (classTree.mods.hasAnnotationNamed(TypeName("ext"))) {
-            classTree = classTree.copy(name = TypeName(classTree.name.decoded + "$Ext")).copyPos(classTree).asInstanceOf[ClassDef]
-          }
+          val classTree = tree.asInstanceOf[ClassDef]
+          //if (classTree.mods.hasAnnotationNamed(TypeName("ext"))) {
+          //  classTree = classTree.copy(name = TypeName(classTree.name.decoded + "$Ext")).copyPos(classTree).asInstanceOf[ClassDef]
+          //}
           val oldInTrait = inTrait
           inTrait = true
           val tree2 = sup(classTree)
           inTrait = oldInTrait
           tree2.copyPos(tree)
-        case tree@Select(o, TermName("hash")) if !inPat =>
-          Apply(Ident(TermName("Z")).copyPos(tree), List(Select(transform(o), TermName("hashCode")).copyPos(tree))).copyPos(tree)
-        case Literal(Constant(true)) => q"T".copyPos(tree)
-        case Literal(Constant(false)) => q"F".copyPos(tree)
+        case tree@Select(o, TermName("hash")) if !inPat => q"_root_.org.sireum.Z(${transform(o)}.hashCode)".copyPos(tree)
+        case Literal(Constant(true)) => q"_root_.org.sireum.T".copyPos(tree)
+        case Literal(Constant(false)) => q"_root_.org.sireum.F".copyPos(tree)
         case Literal(Constant(_: Char)) =>
-          (if (inPat) pq"C($tree)" else q"C($tree)").copyPos(tree)
+          (if (inPat) pq"_root_.org.sireum.C($tree)" else q"_root_.org.sireum.C($tree)").copyPos(tree)
         case Literal(Constant(_: Int)) =>
-          (if (inPat) pq"Z.Int($tree)" else q"Z($tree)").copyPos(tree)
+          (if (inPat) pq"_root_.org.sireum.Z.Int($tree)" else q"_root_.org.sireum.Z($tree)").copyPos(tree)
         case Literal(Constant(_: Long)) =>
-          (if (inPat) pq"Z.Long($tree)" else q"Z($tree)").copyPos(tree)
+          (if (inPat) pq"_root_.org.sireum.Z.Long($tree)" else q"_root_.org.sireum.Z($tree)").copyPos(tree)
         case Literal(Constant(_: Float)) =>
-          (if (inPat) pq"F32($tree)" else q"F32($tree)").copyPos(tree)
+          (if (inPat) pq"_root_.org.sireum.F32($tree)" else q"_root_.org.sireum.F32($tree)").copyPos(tree)
         case Literal(Constant(_: Double)) =>
-          (if (inPat) pq"F64($tree)" else q"F64($tree)").copyPos(tree)
+          (if (inPat) pq"_root_.org.sireum.F64($tree)" else q"_root_.org.sireum.F64($tree)").copyPos(tree)
         case Literal(Constant(_: String)) =>
-          (if (inPat) pq"String($tree)" else q"String($tree)").copyPos(tree)
+          (if (inPat) pq"_root_.org.sireum.String($tree)" else q"_root_.org.sireum.String($tree)").copyPos(tree)
         case q"$mods val $pat: $tpt = $rhs" =>
           if (!(rhs == EmptyTree || isDollar(rhs))) q"$mods val $pat: $tpt = ${assign(rhs)}".copyPos(tree) else tree
         case q"$mods var $pat: $tpt = $rhs" =>
@@ -171,11 +168,12 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
   def newPhase(prev: Phase): StdPhase = new StdPhase(prev) {
     def apply(unit: CompilationUnit): Unit = {
-      var isSireum = unit.source.file.hasExtension("logika") || (unit.source.file.hasExtension("sc") &&
-        (unit.body.children.headOption match {
-          case Some(x) if x == q"import org.sireum._" || x == q"import org.sireum.logika._" => true
-          case _ => false
-        }))
+      var isSireum = unit.source.file.hasExtension("slang") || unit.source.file.hasExtension("logika") ||
+        (unit.source.file.hasExtension("sc") &&
+          (unit.body.children.headOption match {
+            case Some(x) if x == q"import org.sireum._" || x == q"import org.sireum.logika._" => true
+            case _ => false
+          }))
       if (!isSireum) {
         val cs = unit.source.content
         val i = cs.indexOf('\n')

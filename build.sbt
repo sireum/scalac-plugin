@@ -1,14 +1,13 @@
-val scalaVer = "2.12.3"
+val scalaVer = "2.12.4"
 
 val pluginVersion = "3.1.3-SNAPSHOT"
 
 lazy val sireumScalacPlugin = Project(
   id = "sireum-scalac-plugin",
-  base = file("."),
-  settings = Seq(
+  base = file(".")).
+  settings(Seq(
     organization := "org.sireum",
     name := "scalac-plugin",
-    incOptions := incOptions.value.withNameHashing(true),
     retrieveManaged := true,
     version := pluginVersion,
     scalaVersion := scalaVer,
@@ -46,5 +45,4 @@ lazy val sireumScalacPlugin = Project(
             <url>http://cs.ksu.edu/~robby</url>
           </developer>
         </developers>
-  )
-)
+  ))
