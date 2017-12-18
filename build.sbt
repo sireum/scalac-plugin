@@ -2,6 +2,8 @@ val scalaVer = "2.12.4"
 
 val pluginVersion = "3.1.3-SNAPSHOT"
 
+val metaVersion = "2.1.2"
+
 lazy val sireumScalacPlugin = Project(
   id = "sireum-scalac-plugin",
   base = file(".")).
@@ -13,9 +15,25 @@ lazy val sireumScalacPlugin = Project(
     scalaVersion := scalaVer,
     scalacOptions := Seq("-target:jvm-1.8", "-deprecation",
     "-Ydelambdafy:method", "-feature", "-unchecked", "-Xfatal-warnings"),
-    parallelExecution in Test := true,
+    assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false),
+    artifact in (Compile, assembly) := {
+      val art = (artifact in (Compile, assembly)).value
+      art.withClassifier(Some("assembly"))
+    },
+    assemblyShadeRules in assembly := Seq(
+      ShadeRule.rename("com.**" -> "sh4d3.com.@1").inAll,
+      ShadeRule.rename("fastparse.**" -> "sh4d3.fastparse.@1").inAll,
+      ShadeRule.rename("google.**" -> "sh4d3.google.@1").inAll,
+      ShadeRule.rename("org.langmeta.**" -> "sh4d3.org.langmeta.@1").inAll,
+      ShadeRule.rename("org.scalameta.**" -> "sh4d3.org.scalameta.@1").inAll,
+      ShadeRule.rename("scala.meta.**" -> "sh4d3.scala.meta.@1").inAll,
+      ShadeRule.rename("scalapb.**" -> "sh4d3.scalapb.@1").inAll,
+      ShadeRule.rename("sourcecode.**" -> "sh4d3.sourcecode.@1").inAll
+    ),
     libraryDependencies ++= Seq(
-      "org.scala-lang" % "scala-compiler" % scalaVer),
+      "org.scala-lang" % "scala-compiler" % scalaVer,
+      "org.scalameta" %% "scalameta" % metaVersion
+    ),
     publishMavenStyle := true,
     publishTo := {
       val nexus = "https://oss.sonatype.org/"
@@ -45,4 +63,5 @@ lazy val sireumScalacPlugin = Project(
             <url>http://cs.ksu.edu/~robby</url>
           </developer>
         </developers>
-  ))
+  )).settings(addArtifact(artifact in (Compile, assembly), assembly).settings: _*)
+

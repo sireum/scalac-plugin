@@ -39,14 +39,6 @@ class SireumPlugin(override val global: Global) extends Plugin {
 
 final class SireumComponent(val global: Global) extends PluginComponent with TypingTransformers {
 
-  implicit class CopyPos(val t: Any) {
-    def copyPos(tree: Any): global.Tree = {
-      val t2 = t.asInstanceOf[global.Tree]
-      t2.pos = tree.asInstanceOf[global.Tree].pos
-      t2
-    }
-  }
-
   import global._
 
   override val phaseName = "sireum"
@@ -54,33 +46,55 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
   override val runsAfter: List[String] = runsRightAfter.toList
   override val runsBefore: List[String] = List[String]("namer")
 
+  val unitCons = Literal(Constant(()))
+
+  implicit class CopyPos(val t: Any) {
+    def copyPos(tree: Any): Tree = {
+      val t2 = t.asInstanceOf[Tree]
+      t2.pos = tree.asInstanceOf[Tree].pos
+      t2
+    }
+  }
+
+  def fixPos(tree: Tree): Tree = {
+    def rec(pos: Position, t: Tree): Unit = {
+      if (t.pos == NoPosition) {
+        t.pos = pos.makeTransparent
+      }
+      for (t2 <- t.children) {
+        rec(t.pos, t2)
+      }
+    }
+
+    rec(tree.pos, tree)
+    tree
+  }
+
   def isDollar(t: Any): Boolean = t match {
     case q"$$" => true
     case _ => false
   }
 
-  val unitCons = Literal(Constant(()))
+  final class SemanticsTransformer(unit: CompilationUnit,
+                                   var inPat: Boolean,
+                                   var inTrait: Boolean) extends TypingTransformer(unit) {
+    def sup(tree: Tree): Tree = super.transform(tree)
 
-  final class Transformer(unit: CompilationUnit,
-                          var inPat: Boolean,
-                          var inTrait: Boolean) extends TypingTransformer(unit) {
-    def sup(tree: global.Tree): global.Tree = super.transform(tree)
+    def trans(tree: Any): Tree = transform(tree.asInstanceOf[Tree])
 
-    def trans(tree: Any): global.Tree = transform(tree.asInstanceOf[global.Tree])
-
-    def assignNoTrans(tree: global.Tree): global.Tree =
+    def assignNoTrans(tree: Tree): Tree =
       if (inPat) tree else q"_root_.org.sireum.helper.$$assign($tree)".copyPos(tree)
 
-    def assign(tree: Any): global.Tree = tree match {
+    def assign(tree: Any): Tree = tree match {
       case _: Literal => trans(tree)
       case _: Function => trans(tree)
       case Apply(Select(Apply(Ident(TermName("StringContext")), _), _), _) => trans(tree)
       case _ => assignNoTrans(trans(tree))
     }
 
-    def pos(tree: Any): global.Position = tree.asInstanceOf[global.Tree].pos
+    def pos(tree: Any): Position = tree.asInstanceOf[Tree].pos
 
-    override def transform(tree: global.Tree): global.Tree = {
+    override def transform(tree: Tree): Tree = {
       val r = tree match {
         case tree: DefDef =>
           tree.rhs match {
@@ -152,18 +166,88 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     }
   }
 
-  def fixPos(tree: global.Tree): global.Tree = {
-    def rec(pos: Position, t: global.Tree): Unit = {
-      if (t.pos == NoPosition) {
-        t.pos = pos.makeTransparent
-      }
-      for (t2 <- t.children) {
-        rec(t.pos, t2)
+  final class AnnotationTransformer(unit: CompilationUnit,
+                                    var packageName: Vector[String],
+                                    var enclosing: Vector[String]) extends TypingTransformer(unit) {
+
+    val mat = new MetaAnnotationTransformer(new String(unit.source.content),
+      (offset, msg) => global.reporter.error(unit.position(offset), msg))
+
+    {
+      val errorOffset = mat.transform()
+      if (errorOffset >= 0) {
+        global.reporter.error(unit.position(errorOffset), s"Error processing compilation unit ${unit.source.file.canonicalPath}.")
       }
     }
 
-    rec(tree.pos, tree)
-    tree
+    def parseTerms(terms: Seq[String]): List[Tree] = {
+      val r = newUnitParser(terms.mkString(";\n")).parseStats
+      r.foreach(erasePosition)
+      r
+    }
+
+    def parseTypes(types: Seq[String]): List[Tree] = {
+      val o = newUnitParser(s"object X extends Y with ${types.mkString(" with ")}").parseStats.
+        head.asInstanceOf[ModuleDef]
+      erasePosition(o)
+      o.impl.parents.tail
+    }
+
+    def erasePosition(tree: Tree): Unit = {
+      tree.pos = NoPosition
+      for (t <- tree.children) {
+        erasePosition(t)
+      }
+    }
+
+    def ref2strings(tree: Any): Vector[String] = {
+      tree match {
+        case tree: Ident => Vector(tree.name.encoded)
+        case tree: Select => ref2strings(tree.qualifier) :+ tree.name.encoded
+      }
+    }
+
+    override def transform(tree: Tree): Tree = {
+      val oldEnclosing = enclosing
+      val tree2 = tree match {
+        case q"package $ref { ..$_ }" =>
+          packageName = ref2strings(ref)
+          tree
+        case tree: ClassDef =>
+          enclosing :+= tree.name.decoded
+          var r = tree
+          mat.classMembers.get(enclosing) match {
+            case Some(members) => r = r.copy(impl = r.impl.copy(body = parseTerms(members) ++ r.impl.body))
+            case _ =>
+          }
+          mat.classSupers.get(enclosing) match {
+            case Some(supers) => r = r.copy(impl = r.impl.copy(parents = r.impl.parents ++ parseTypes(supers)))
+            case _ =>
+          }
+          r
+        case tree: ModuleDef =>
+          enclosing :+= tree.name.decoded
+          var r = tree
+          mat.companionMembers.get(enclosing) match {
+            case Some(members) => r = r.copy(impl = r.impl.copy(body = parseTerms(members) ++ r.impl.body))
+            case _ =>
+          }
+          mat.companionSupers.get(enclosing) match {
+            case Some(supers) => r = r.copy(impl = r.impl.copy(parents = r.impl.parents ++ parseTypes(supers)))
+            case _ =>
+          }
+          r
+        case tree: DefDef =>
+          if (tree.mods.hasAnnotationNamed(TypeName("spec"))) EmptyTree else tree
+        case tree: ValDef =>
+          if (tree.mods.hasAnnotationNamed(TypeName("spec"))) EmptyTree else tree
+        case _ => tree
+      }
+      val r = super.transform(tree2)
+      enclosing = oldEnclosing
+      r
+    }
+
   }
 
   def newPhase(prev: Phase): StdPhase = new StdPhase(prev) {
@@ -177,7 +261,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       if (!isSireum) {
         val cs = unit.source.content
         val i = cs.indexOf('\n')
-        val sb = new StringBuilder
+        val sb = new java.lang.StringBuilder
         if (i >= 0) {
           for (j <- 0 until i) cs(j) match {
             case '\t' | '\r' | ' ' =>
@@ -188,8 +272,17 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         isSireum = firstLine.contains("#Sireum")
       }
       if (isSireum) {
-        val t = new Transformer(unit, inPat = false, inTrait = false)
-        unit.body = fixPos(t.transform(unit.body))
+        val t1 = new AnnotationTransformer(unit, Vector(), Vector())
+        val t2 = new SemanticsTransformer(unit, inPat = false, inTrait = false)
+        unit.body = fixPos(t1.transform(t2.transform(unit.body)))
+        val dir = settings.outputDirs.outputDirFor(unit.source.file).file
+        val filename = unit.source.file.file.getName
+        val file = new java.io.File(dir, "transformed/" +
+          (if (t1.packageName.isEmpty) "" else t1.packageName.mkString("/") + '/') + filename)
+        file.getParentFile.mkdirs()
+        val fw = new java.io.FileWriter(file)
+        fw.write(showCode(unit.body))
+        fw.close()
       }
     }
   }
