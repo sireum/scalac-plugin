@@ -32,8 +32,10 @@ class MetaAnnotationTransformer(input: String,
             case "@datatype" =>
             case "@enum" => transformEnum(enclosing, parent)
             case "@ext" =>
+            case "@hidden" =>
             case "@memoize" =>
             case "@msig" =>
+            case "@pure" =>
             case "@range" =>
             case "@record" =>
             case "@rich" =>
