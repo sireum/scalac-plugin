@@ -271,14 +271,18 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         val firstLine = sb.toString
         isSireum = firstLine.contains("#Sireum")
       }
-      if (isSireum) {
-        val t1 = new AnnotationTransformer(unit, Vector(), Vector())
-        val t2 = new SemanticsTransformer(unit, inPat = false, inTrait = false)
-        unit.body = fixPos(t1.transform(t2.transform(unit.body)))
+      val at = new AnnotationTransformer(unit, Vector(), Vector())
+      val newBody =
+        if (isSireum)
+          fixPos(at.transform(new SemanticsTransformer(unit, inPat = false, inTrait = false).transform(unit.body)))
+        else
+          fixPos(at.transform(unit.body))
+      if (newBody ne unit.body) {
+        unit.body = newBody
         val dir = settings.outputDirs.outputDirFor(unit.source.file).file
         val filename = unit.source.file.file.getName
         val file = new java.io.File(dir, "transformed/" +
-          (if (t1.packageName.isEmpty) "" else t1.packageName.mkString("/") + '/') + filename)
+          (if (at.packageName.isEmpty) "" else at.packageName.mkString("/") + '/') + filename)
         file.getParentFile.mkdirs()
         val fw = new java.io.FileWriter(file)
         fw.write(showCode(unit.body))
