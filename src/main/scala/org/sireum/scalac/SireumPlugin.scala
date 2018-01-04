@@ -54,12 +54,17 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       t2.pos = tree.asInstanceOf[Tree].pos
       t2
     }
+    def copyPosT[T <: Tree](tree: T): T = {
+      val t2 = t.asInstanceOf[T]
+      t2.pos = tree.pos
+      t2
+    }
   }
 
   def fixPos(tree: Tree): Tree = {
     def rec(pos: Position, t: Tree): Unit = {
       if (t.pos == NoPosition) {
-        t.pos = pos.makeTransparent
+        t.pos = if (pos.isTransparent) pos else pos.makeTransparent
       }
       for (t2 <- t.children) {
         rec(t.pos, t2)
@@ -170,7 +175,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
                                     var packageName: Vector[String],
                                     var enclosing: Vector[String]) extends TypingTransformer(unit) {
 
-    val mat = new MetaAnnotationTransformer(new String(unit.source.content),
+    val mat = new MetaAnnotationTransformer(new String(unit.source.content), Vector(),
       (offset, msg) => global.reporter.error(unit.position(offset), msg))
 
     {
@@ -207,17 +212,66 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       }
     }
 
+    override def transformTrees(trees: List[Tree]): List[Tree] = {
+      var hasChanged = false
+      var newTrees = List[Tree]()
+      for (tree <- trees) {
+        tree match {
+          case tree: ClassDef =>
+            val name = enclosing :+ tree.name.decoded
+            if (mat.companionMembers.contains(enclosing) &&
+              !trees.exists({
+                case md: ModuleDef => name == (enclosing :+ md.name.decoded)
+                case _ => false
+              })) {
+              hasChanged = true
+              newTrees ::= q"object ${tree.name.toTermName} {}".copyPos(tree)
+            }
+          case _ =>
+        }
+        newTrees ::= tree
+      }
+      if (hasChanged) super.transformTrees(newTrees.reverse)
+      else super.transformTrees(trees)
+    }
+
     override def transform(tree: Tree): Tree = {
       val oldEnclosing = enclosing
       val tree2 = tree match {
-        case q"package $ref { ..$_ }" =>
+        case q"package $ref { ..$stats }" =>
           packageName = ref2strings(ref)
-          tree
+          val newStats = companionStats(stats)
+          if (stats ne newStats) tree.asInstanceOf[PackageDef].copy(stats = newStats) else tree
         case tree: ClassDef =>
           enclosing :+= tree.name.decoded
           var r = tree
+          mat.classContructorVals.get(enclosing) match {
+            case Some(ns) =>
+              val names = ns.toSet
+              val q"$mods class $tpname[..$tparams] $ctorMods(..$params) extends { ..$earlydefns } with ..$parents { $self => ..$stats }" = r
+              var newStats = stats
+              val newParams = for (p <- params) yield {
+                p match {
+                  case p: ValDef =>
+                    val name = p.name.decoded
+                    val uname = TermName(s"_$name")
+                    newStats ::= q"def ${TermName(name)} = $uname".copyPos(p)
+                    if (names.contains(name)) p.copy(name = uname) else p
+                }
+              }
+              r = q"$mods class $tpname[..$tparams] $ctorMods(..$newParams) extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
+            case _ =>
+          }
           mat.classMembers.get(enclosing) match {
-            case Some(members) => r = r.copy(impl = r.impl.copy(body = parseTerms(members) ++ r.impl.body))
+            case Some(members) =>
+              r match {
+                case q"$mods class $tpname[..$tparams] $ctorMods(...$paramss) extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
+                  val newStats = stats ++ parseTerms(members)
+                  r = q"$mods class $tpname[..$tparams] $ctorMods(...$paramss) extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
+                case q"$mods trait $tpname[..$tparams] extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
+                  val newStats = stats ++ parseTerms(members)
+                  r = q"$mods trait $tpname[..$tparams] extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
+              }
             case _ =>
           }
           mat.classSupers.get(enclosing) match {
@@ -229,8 +283,16 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           enclosing :+= tree.name.decoded
           var r = tree
           mat.companionMembers.get(enclosing) match {
-            case Some(members) => r = r.copy(impl = r.impl.copy(body = parseTerms(members) ++ r.impl.body))
+            case Some(members) =>
+              val q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$stats }" = r
+              val newStats = companionStats(stats) ++ parseTerms(members)
+              r = q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
             case _ =>
+              val q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$stats }" = r
+              val newStats = companionStats(stats)
+              if (stats ne newStats) {
+                r = q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
+              }
           }
           mat.companionSupers.get(enclosing) match {
             case Some(supers) => r = r.copy(impl = r.impl.copy(parents = r.impl.parents ++ parseTypes(supers)))
@@ -246,6 +308,30 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       val r = super.transform(tree2)
       enclosing = oldEnclosing
       r
+    }
+
+    def companionStats(stats: List[Tree]): List[Tree] = {
+      var newStats = List[Tree]()
+      var hasChanged = false
+      for (stat <- stats) {
+        stat match {
+          case stat: ClassDef =>
+            val name = enclosing :+ stat.name.decoded
+            if (mat.companionMembers.contains(name) &&
+              !stats.exists({
+                case md: ModuleDef =>
+                  name == (enclosing :+ md.name.decoded)
+                case _ => false
+              })) {
+              hasChanged = true
+              newStats ::= q"object ${stat.name.toTermName} {}".copyPos(stat)
+            } else {
+            }
+          case _ =>
+        }
+        newStats ::= stat
+      }
+      if (hasChanged) newStats.reverse else stats
     }
 
   }
@@ -273,8 +359,15 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       }
       if (isSireum) {
         val at = new AnnotationTransformer(unit, Vector(), Vector())
+        //println("AT created")
         val st = new SemanticsTransformer(unit, inPat = false, inTrait = false)
-        val newBody = fixPos(at.transform(st.transform(unit.body)))
+        //println("ST created")
+        val b1 = st.transform(unit.body)
+        //println("ST transformation passed")
+        val b2 = at.transform(b1)
+        //println("AT transformation passed")
+        val newBody = fixPos(b2)
+        //println("fixpos passed")
         unit.body = newBody
         val dir = settings.outputDirs.outputDirFor(unit.source.file).file
         val filename = unit.source.file.file.getName
