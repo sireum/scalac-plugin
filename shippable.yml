@@ -1,0 +1,20 @@
+language: none
+
+services:
+
+build:
+  pre_ci:
+  pre_ci_boot:
+    image_name: sireum/v3
+    image_tag: latest
+    pull: true
+    options: "-e HOME=/root"
+  ci:
+    - sbt publishLocal
+    - git clone https://github.com/sireum/v3-scalac-plugin-test.git sireum-v3-scalac-plugin-test
+    - cd sireum-v3-scalac-plugin-test
+    - sbt test
+  post_ci:
+  on_success:
+  on_failure:
+  push:
