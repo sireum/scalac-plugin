@@ -18,7 +18,7 @@ lazy val sireumScalacPlugin = Project(
     assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false),
     artifact in (Compile, assembly) := {
       val art = (artifact in (Compile, assembly)).value
-      art.withClassifier(Some("assembly"))
+      art.withClassifier(Some("all"))
     },
     assemblyShadeRules in assembly := Seq(
       ShadeRule.rename("com.**" -> "sh4d3.com.@1").inAll,
