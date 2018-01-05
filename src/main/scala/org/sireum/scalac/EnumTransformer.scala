@@ -42,27 +42,25 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
           return
         }
         var decls = Vector[Stat](
-          q"type Type = Value",
-          q"""sealed trait Value extends scala.Ordered[Value] {
+          q"""sealed trait Type extends _root_.scala.Ordered[Type]  {
                 def ordinal: $sireumZ
 
                 def name: $sireumString
 
                 final def hash: $sireumZ = hashCode
 
-                final def isEqual(other: Value): $sireumB = this == other
+                final def isEqual(other: Type): $sireumB = this == other
 
-                final def compare(that: Value): $scalaInt = this.ordinal.compareTo(that.ordinal)
+                final def compare(that: Type): $scalaInt = this.ordinal.compareTo(that.ordinal)
               }
-           """
-          ,
-          q"""final def byName(name: $sireumString): $sireumOption[Value] =
+           """,
+          q"""final def byName(name: $sireumString): $sireumOption[Type] =
                 elements.elements.find(_.name == name) match {
                   case _root_.scala.Some(v) => $sireumSomeQ(v)
                   case _ => $sireumNoneQ()
               }
            """,
-          q"""final def byOrdinal(n: $sireumZ): $sireumOption[Value] =
+          q"""final def byOrdinal(n: $sireumZ): $sireumOption[Type] =
                 if (0 <= n && n < elements.size) $sireumSomeQ(elements(n)) else $sireumNoneQ()
            """
         )
@@ -81,13 +79,13 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
             q"def ordinal: $sireumZ = ${Lit.Int(i)}",
             q"def name: $sireumString = ${Lit.String(sym)}"
           )
-          decls :+= q"final case object $tname extends Value { ..$ostats }"
+          decls :+= q"final case object $tname extends Type { ..$ostats }"
           elements :+= tname
           i += 1
         }
         decls ++= Vector[Stat](
           q"val numOfElements: $sireumZ = ${Lit.Int(i)}",
-          q"val elements: $sireumISZ[Value] = $sireumISZQ[Value](..${elements.toList})"
+          q"val elements: $sireumISZ[Type] = $sireumISZQ[Type](..${elements.toList})"
         )
         mat.companionMembers.getOrElseUpdate(name, MSeq()) ++= decls.map(_.syntax)
         mat.companionSupers.getOrElseUpdate(name, MSeq()) += enumSig.syntax
