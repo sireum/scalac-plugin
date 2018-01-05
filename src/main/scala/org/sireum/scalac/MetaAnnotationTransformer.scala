@@ -79,21 +79,23 @@ class MetaAnnotationTransformer(input: String,
     }
   }
 
-  def hasHashEquals(tpe: Type, stats: Seq[Stat]): (Boolean, Boolean) = {
-    var hasEquals = false
+  def hasHashEqualString(tpe: Type, stats: Seq[Stat]): (Boolean, Boolean, Boolean) = {
+    var hasEqual = false
     var hasHash = false
-    for (stat <- stats if !(hasEquals && hasHash)) {
+    var hasString = false
+    for (stat <- stats if !(hasEqual && hasHash)) {
       stat match {
-        case q"..$_ def hash: Z = $_" => hasHash = true
-        case q"..$_ def isEqual($_ : ${tpeopt: Option[Type]}): B = $_" =>
-          tpeopt match {
-            case Some(t: Type) if tpe.structure == t.structure => hasEquals = true
+        case stat: Defn.Def =>
+          stat.name.value match {
+            case "hash" => hasHash = true
+            case "isEqual" => hasEqual = true
+            case "string" => hasString = true
             case _ =>
           }
         case _ =>
       }
     }
-    (hasHash, hasEquals)
+    (hasHash, hasEqual, hasString)
   }
 
   def transformDatatypeTrait(name: Vector[String], tree: Defn.Trait): Unit = {
@@ -107,7 +109,7 @@ class MetaAnnotationTransformer(input: String,
     val tparams = tree.tparams
     val tVars = tparams.map { tp => Type.Name(tp.name.value) }
     val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
-    val (hasHash, hasEqual) = hasHashEquals(tpe, tree.templ.stats)
+    val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats)
     val equals =
       if (hasEqual) {
         val eCases =
@@ -117,6 +119,9 @@ class MetaAnnotationTransformer(input: String,
         List(q"override def equals(o: scala.Any): scala.Boolean = { if (this eq o.asInstanceOf[scala.AnyRef]) true else o match { ..case $eCases } }")
       } else List()
     val hash = if (hasHash) List(q"override def hashCode: scala.Int = { hash.hashCode }") else List()
+    val toString =
+      if (hasString) List(q"override def toString: java.lang.String = { string }")
+      else List()
     classMembers.getOrElseUpdate(name, MSeq()) ++= (hash.map(_.syntax) ++ equals.map(_.syntax))
     classSupers.getOrElseUpdate(name, MSeq()) += "org.sireum.DatatypeSig"
   }
@@ -125,7 +130,7 @@ class MetaAnnotationTransformer(input: String,
     val q"..$_ class $tname[..$tparams] ..$_ (...$paramss) extends $template" = tree
     val tVars = tparams.map { tp => Type.Name(tp.name.value) }
     val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
-    val (hasHash, hasEquals) = hasHashEquals(tpe, tree.templ.stats)
+    val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats)
     if (paramss.nonEmpty && paramss.head.nonEmpty) {
       var cparams: Vector[String] = Vector()
       var applyParams: Vector[Term.Param] = Vector()
@@ -158,10 +163,10 @@ class MetaAnnotationTransformer(input: String,
       {
         val hashCode =
           if (hasHash) q"override lazy val hashCode: scala.Int = hash.hashCode"
-          else if (hasEquals) q"override lazy val hashCode: scala.Int = 0"
+          else if (hasEqual) q"override lazy val hashCode: scala.Int = 0"
           else q"override lazy val hashCode: scala.Int = { scala.Seq(this.getClass, ..${unapplyArgs.toList}).hashCode }"
         val equals =
-          if (hasEquals) {
+          if (hasEqual) {
             val eCases = Vector(if (tparams.isEmpty) p"case o: $tname => isEqual(o)"
             else p"case (o: $tname[..$tVars] @unchecked) => isEqual(o)", p"case _ => false")
             q"override def equals(o: scala.Any): scala.Boolean = { if (this eq o.asInstanceOf[AnyRef]) true else o match { ..case ${eCases.toList} } }"
@@ -180,17 +185,16 @@ class MetaAnnotationTransformer(input: String,
           appends =
             if (appends.isEmpty) appends
             else appends.head +: appends.tail.flatMap(a => Vector(q"""sb.append(", ")""", a))
-          Vector(
-            q"""override def toString: java.lang.String = {
-                    val sb = new java.lang.StringBuilder
-                    sb.append(${Lit.String(tname.value)})
-                    sb.append('(')
-                    ..${appends.toList}
-                    sb.append(')')
-                    sb.toString
-                  }""",
-            q"override def string: _root_.org.sireum.String = { toString }"
-          )
+          if (hasString) Vector(q"override def toString: java.lang.String = { string }")
+          else Vector(q"""override def toString: java.lang.String = {
+                            val sb = new java.lang.StringBuilder
+                            sb.append(${Lit.String(tname.value)})
+                            sb.append('(')
+                            ..${appends.toList}
+                            sb.append(')')
+                            sb.toString
+                          }""",
+            q"override def string: _root_.org.sireum.String = { toString }")
         }
         val content = {
           var fields = List[Term](q"(${Lit.String("type")}, List[Predef.String](..${(packageName :+ tname.value).map(x => Lit.String(x)).toList}))")
@@ -233,10 +237,10 @@ class MetaAnnotationTransformer(input: String,
       {
         val hashCode =
           if (hasHash) q"override val hashCode: scala.Int = { hash.hashCode }"
-          else if (hasEquals) q"override val hashCode: scala.Int = { 0 }"
+          else if (hasEqual) q"override val hashCode: scala.Int = { 0 }"
           else q"override val hashCode: scala.Int = { this.getClass.hashCode }"
         val equals =
-          if (hasEquals) {
+          if (hasEqual) {
             val eCases =
               Vector(if (tparams.isEmpty) p"case o: $tname => isEqual(o)"
               else p"case (o: $tname[..$tVars] @unchecked) => isEqual(o)",
@@ -250,8 +254,9 @@ class MetaAnnotationTransformer(input: String,
             q"override def equals(o: scala.Any): scala.Boolean = { if (this eq o.asInstanceOf[scala.AnyRef]) true else o match { ..case ${eCases.toList} } }"
           }
         val toString = {
-          val r = tname.value + "()"
-          Vector(q"""override def toString: java.lang.String = { ${Lit.String(r)} }""", q"override def string: _root_.org.sireum.String = { toString }")
+          if (hasString) Vector(q"override def toString: java.lang.String = { string }")
+          else Vector(q"""override def toString: java.lang.String = { ${Lit.String(tname.value + "()")} }""",
+            q"override def string: _root_.org.sireum.String = { toString }")
         }
         val content = q"override lazy val content: scala.Seq[(Predef.String, scala.Any)] = scala.Seq((${Lit.String("type")}, List[Predef.String](..${(packageName :+ tname.value).map(x => Lit.String(x)).toList})))"
         classMembers.getOrElseUpdate(name, MSeq()) ++= toString.map(_.syntax) :+ hashCode.syntax :+ equals.syntax :+ content.syntax
