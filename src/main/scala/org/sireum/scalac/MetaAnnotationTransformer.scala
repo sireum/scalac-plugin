@@ -30,15 +30,15 @@ import scala.meta.dialects.Scala212
 import scala.collection.mutable.{Map => MMap, ArrayBuffer => MSeq, Set => MSet}
 
 object MetaAnnotationTransformer {
-  val sireumB = t"_root_.sireum.B"
-  val sireumZ = t"_root_.sireum.Z"
-  val sireumString = t"_root_.sireum.String"
-  val sireumOption = t"_root_.sireum.Option"
-  val sireumISZ = t"_root_.sireum.ISZ"
+  val sireumB = t"_root_.org.sireum.B"
+  val sireumZ = t"_root_.org.sireum.Z"
+  val sireumString = t"_root_.org.sireum.String"
+  val sireumOption = t"_root_.org.sireum.Option"
+  val sireumISZ = t"_root_.org.sireum.ISZ"
 
-  val sireumSomeQ = q"_root_.sireum.Some"
-  val sireumNoneQ = q"_root_.sireum.None"
-  val sireumISZQ = q"_root_.sireum.ISZ"
+  val sireumSomeQ = q"_root_.org.sireum.Some"
+  val sireumNoneQ = q"_root_.org.sireum.None"
+  val sireumISZQ = q"_root_.org.sireum.ISZ"
 
   val scalaAny = t"_root_.scala.Any"
   val scalaNothing = t"_root_.scala.Nothing"
