@@ -232,29 +232,6 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       }
     }
 
-    override def transformTrees(trees: List[Tree]): List[Tree] = {
-      var hasChanged = false
-      var newTrees = List[Tree]()
-      for (tree <- trees) {
-        tree match {
-          case tree: ClassDef =>
-            val name = enclosing :+ tree.name.decoded
-            if (mat.companionMembers.contains(enclosing) &&
-              !trees.exists({
-                case md: ModuleDef => name == (enclosing :+ md.name.decoded)
-                case _ => false
-              })) {
-              hasChanged = true
-              newTrees ::= q"object ${tree.name.toTermName} {}".copyPos(tree)
-            }
-          case _ =>
-        }
-        newTrees ::= tree
-      }
-      if (hasChanged) super.transformTrees(newTrees.reverse)
-      else super.transformTrees(trees)
-    }
-
     override def transform(tree: Tree): Tree = {
       val oldEnclosing = enclosing
       val tree2 = tree match {

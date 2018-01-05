@@ -55,6 +55,8 @@ object MetaAnnotationTransformer {
 
   val enumSig = t"_root_.org.sireum.EnumSig"
   val datatypeSig = t"_root_.org.sireum.DatatypeSig"
+  val immutable = t"_root_.org.sireum.Immutable"
+  val mutable = t"_root_.org.sireum.Mutable"
 
   val sireumStringEscape = q"_root_.org.sireum.String.escape"
 
@@ -91,6 +93,7 @@ class MetaAnnotationTransformer(input: String,
   val classContructorVals: MMap[Vector[String], MSeq[String]] = MMap()
   val dt = new DatatypeTransformer(this)
   val et = new EnumTransformer(this)
+  val st = new SigTransformer(this)
 
   def transform(): Int = {
     input.parse[Source] match {
@@ -117,14 +120,15 @@ class MetaAnnotationTransformer(input: String,
             case "@datatype" => dt.transform(enclosing, parent)
             case "@enum" => et.transform(enclosing, parent)
             case "@ext" =>
+            case "@helper" => // skip
             case "@hidden" =>
             case "@memoize" =>
-            case "@msig" =>
-            case "@pure" =>
+            case "@msig" => st.transform(isImmutable = false, enclosing, parent)
+            case "@pure" => // skip
             case "@range" =>
             case "@record" =>
             case "@rich" =>
-            case "@sig" =>
+            case "@sig" => st.transform(isImmutable = true, enclosing, parent)
             case "@spec" => // skip
             case annSyntax => error(tree.pos, s"Unsupported annotation $annSyntax.")
           }
