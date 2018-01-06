@@ -91,8 +91,11 @@ class MetaAnnotationTransformer(input: String,
   val classSupers: MMap[Vector[String], MSeq[String]] = MMap()
   val classMembers: MMap[Vector[String], MSeq[String]] = MMap()
   val classContructorVals: MMap[Vector[String], MSeq[String]] = MMap()
+  val objectMemberReplace: MMap[Vector[String], String] = MMap()
+  val classMemberReplace: MMap[Vector[String], String] = MMap()
   val dt = new DatatypeTransformer(this)
   val et = new EnumTransformer(this)
+  val ext = new ExtTransformer(this)
   val st = new SigTransformer(this)
 
   def transform(): Int = {
@@ -119,9 +122,9 @@ class MetaAnnotationTransformer(input: String,
             case "@bits" =>
             case "@datatype" => dt.transform(enclosing, parent)
             case "@enum" => et.transform(enclosing, parent)
-            case "@ext" =>
+            case "@ext" => ext.transform(enclosing, parent)
             case "@helper" => // skip
-            case "@hidden" =>
+            case "@hidden" => // skip
             case "@memoize" =>
             case "@msig" => st.transform(isImmutable = false, enclosing, parent)
             case "@pure" => // skip

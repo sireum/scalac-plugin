@@ -282,11 +282,11 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           mat.companionMembers.get(enclosing) match {
             case Some(members) =>
               val q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$stats }" = r
-              val newStats = companionStats(stats) ++ parseTerms(members)
+              val newStats = companionStats(objectStats(stats)) ++ parseTerms(members)
               r = q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
             case _ =>
               val q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$stats }" = r
-              val newStats = companionStats(stats)
+              val newStats = companionStats(objectStats(stats))
               if (stats ne newStats) {
                 r = q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
               }
@@ -305,6 +305,22 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       val r = super.transform(tree2)
       enclosing = oldEnclosing
       r
+    }
+
+    def objectStats(stats: List[Tree]): List[Tree] = {
+      for (stat <- stats) yield {
+        val name = stat match {
+          case stat: ValDef => stat.name.decoded
+          case stat: DefDef => stat.name.decoded
+          case stat: ClassDef => stat.name.decoded
+          case stat: ModuleDef => stat.name.decoded
+          case _ => ""
+        }
+        mat.objectMemberReplace.get(enclosing :+ name) match {
+          case Some(text) => parseTerms(Vector(text)).head.copyPos(stat)
+          case _ => stat
+        }
+      }
     }
 
     def companionStats(stats: List[Tree]): List[Tree] = {
