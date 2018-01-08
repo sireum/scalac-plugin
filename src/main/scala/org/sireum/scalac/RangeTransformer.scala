@@ -185,12 +185,14 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
               if (hasMax) assert(v <= Max.value, v + $maxErrorMessage)
               v
             }""",
+          q"def apply(n: $scalaInt): $typeName = Int(n)",
+          q"def apply(n: $scalaLong): $typeName = Long(n)",
           q"def apply(n: $sireumMP): $typeName = new $ctorName(n)",
           q"""def apply(n: $sireumZ): $typeName = n match {
               case n: $sireumMP => $termName(n)
               case _ => halt(s"Unsupported $$Name creation from $${n.Name}.")
             }""",
-          q"def apply(s: $sireumString): $sireumOption[$typeName] = try $sireumSomeQ($termName.$$String(s.value)) catch { case _: Throwable => $sireumNoneQ[$typeName]() }",
+          q"def apply(s: $sireumString): $sireumOption[$typeName] = try $sireumSomeQ($termName.$$String(s.value)) catch { case _: _root_.java.lang.Throwable => $sireumNoneQ[$typeName]() }",
           q"def unapply(n: $typeName): $scalaOption[$sireumZ] = $scalaSomeQ(n.value)",
           q"""object Int extends org.sireum.$$ZCompanionInt[$typeName] {
               def apply(n: $scalaInt): $typeName = $termName($sireumZQ.MP(n))
