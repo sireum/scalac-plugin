@@ -60,6 +60,8 @@ object MetaAnnotationTransformer {
 
   val sireumStringEscape = q"_root_.org.sireum.String.escape"
 
+  lazy val isJs: Boolean = scala.util.Try(Class.forName("scala.scalajs.js.Any", false, getClass.getClassLoader)).isSuccess
+
   def hasHashEqualString(tpe: Type, stats: Seq[Stat]): (Boolean, Boolean, Boolean) = {
     var hasEqual = false
     var hasHash = false
@@ -96,6 +98,7 @@ class MetaAnnotationTransformer(input: String,
   val dt = new DatatypeTransformer(this)
   val et = new EnumTransformer(this)
   val ext = new ExtTransformer(this)
+  val mt = new MemoizeTransformer(this)
   val st = new SigTransformer(this)
 
   def transform(): Int = {
@@ -125,7 +128,7 @@ class MetaAnnotationTransformer(input: String,
             case "@ext" => ext.transform(enclosing, parent)
             case "@helper" => // skip
             case "@hidden" => // skip
-            case "@memoize" =>
+            case "@memoize" => mt.transform(enclosing, parent)
             case "@msig" => st.transform(isImmutable = false, enclosing, parent)
             case "@pure" => // skip
             case "@range" =>
