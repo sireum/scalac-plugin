@@ -158,6 +158,7 @@ class MetaAnnotationTransformer(input: String,
   val classContructorVals: MMap[Vector[String], MSeq[String]] = MMap()
   val objectMemberReplace: MMap[Vector[String], String] = MMap()
   val classMemberReplace: MMap[Vector[String], String] = MMap()
+  val bt = new BitsTransformer(this)
   val dt = new DatatypeTransformer(this)
   val et = new EnumTransformer(this)
   val ext = new ExtTransformer(this)
@@ -200,7 +201,7 @@ class MetaAnnotationTransformer(input: String,
             case annSyntax =>
               ann.init.tpe.syntax match {
                 case "range" if ann.init.argss.size == 1 => rt.transform(enclosing, parent, ann.init.argss.head)
-                case "bits" if ann.init.argss.size == 1 =>
+                case "bits" if ann.init.argss.size == 1 => bt.transform(enclosing, parent, ann.init.argss.head)
                 case _ => error(tree.pos, s"Unsupported annotation $annSyntax.")
               }
           }

@@ -250,7 +250,9 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         case tree: ClassDef =>
           enclosing :+= tree.name.decoded
           mat.classReplace.get(enclosing) match {
-            case Some(text) => return parseTerms(Vector(text)).head.copyPos(tree)
+            case Some(text) =>
+              enclosing = oldEnclosing
+              return parseTerms(Vector(text)).head.copyPos(tree)
             case _ =>
           }
           var r = tree
