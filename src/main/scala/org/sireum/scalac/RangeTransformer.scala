@@ -234,8 +234,8 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
               }""",
           q"implicit val $iTermName: _root_.org.sireum.$$ZCompanion[$typeName] = this"
         ) ++ boxerObject).map(_.syntax)
-        mat.companionMembers.getOrElseUpdate(name, MSeq()) ++= objectMembers
-        mat.companionSupers.getOrElseUpdate(name, MSeq()) += t"_root_.org.sireum.$$ZCompanion[$typeName]".syntax
+        mat.objectMembers.getOrElseUpdate(name, MSeq()) ++= objectMembers
+        mat.objectSupers.getOrElseUpdate(name, MSeq()) += t"_root_.org.sireum.$$ZCompanion[$typeName]".syntax
       case _ => mat.error(tree.pos, s"Invalid Slang @range on: ${tree.syntax}")
     }
   }

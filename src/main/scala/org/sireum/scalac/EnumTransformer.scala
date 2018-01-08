@@ -87,8 +87,8 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
           q"val numOfElements: $sireumZ = ${Lit.Int(i)}",
           q"val elements: $sireumISZ[Type] = $sireumISZQ[Type](..${elements.toList})"
         )
-        mat.companionMembers.getOrElseUpdate(name, MSeq()) ++= decls.map(_.syntax)
-        mat.companionSupers.getOrElseUpdate(name, MSeq()) += enumSig.syntax
+        mat.objectMembers.getOrElseUpdate(name, MSeq()) ++= decls.map(_.syntax)
+        mat.objectSupers.getOrElseUpdate(name, MSeq()) += enumSig.syntax
       case _ =>
         mat.error(tree.pos, "Slang @enum can only be used on an object.")
     }

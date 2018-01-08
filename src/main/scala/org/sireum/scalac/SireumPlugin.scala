@@ -291,7 +291,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         case tree: ModuleDef =>
           enclosing :+= tree.name.decoded
           var r = tree
-          mat.companionMembers.get(enclosing) match {
+          mat.objectMembers.get(enclosing) match {
             case Some(members) =>
               val q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$stats }" = r
               val newStats = companionStats(rewriteStats(mat.objectMemberReplace, stats)) ++ parseTerms(members)
@@ -303,7 +303,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
                 r = q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
               }
           }
-          mat.companionSupers.get(enclosing) match {
+          mat.objectSupers.get(enclosing) match {
             case Some(supers) => r = r.copy(impl = r.impl.copy(parents = r.impl.parents ++ parseTypes(supers)))
             case _ =>
           }
@@ -366,7 +366,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         stat match {
           case stat: ClassDef =>
             val name = enclosing :+ stat.name.decoded
-            if (mat.companionMembers.contains(name) &&
+            if (mat.objectMembers.contains(name) &&
               !stats.exists({
                 case md: ModuleDef =>
                   name == (enclosing :+ md.name.decoded)

@@ -150,8 +150,8 @@ class MetaAnnotationTransformer(input: String,
                                 var packageName: Vector[String],
                                 errorAt: (Int, String) => Unit) {
 
-  val companionSupers: MMap[Vector[String], MSeq[String]] = MMap()
-  val companionMembers: MMap[Vector[String], MSeq[String]] = MMap()
+  val objectSupers: MMap[Vector[String], MSeq[String]] = MMap()
+  val objectMembers: MMap[Vector[String], MSeq[String]] = MMap()
   val classSupers: MMap[Vector[String], MSeq[String]] = MMap()
   val classMembers: MMap[Vector[String], MSeq[String]] = MMap()
   val classReplace: MMap[Vector[String], String] = MMap()

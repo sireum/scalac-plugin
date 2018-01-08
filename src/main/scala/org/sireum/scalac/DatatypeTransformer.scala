@@ -174,7 +174,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
                   val unapplyArgss = unapplyArgs.grouped(22).map(args => q"(..${args.map(a => q"o.$a").toList})").toList
                   q"def unapply[..$tparams](o: $tpe): $scalaOption[(..$unapplyTypess)] = { $scalaSomeQ((..$unapplyArgss)) }"
               })
-        mat.companionMembers.getOrElseUpdate(name, MSeq()) ++= Vector(apply.syntax, unapply.syntax)
+        mat.objectMembers.getOrElseUpdate(name, MSeq()) ++= Vector(apply.syntax, unapply.syntax)
       }
     } else {
       {
@@ -216,7 +216,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
             (q"private[this] val v: $scalaAnyRef = { new ${t"$tname[..${tparams.map(_ => scalaNothing)}]"}() }",
               q"def apply[..$tparams](): $tpe = { v.asInstanceOf[$tpe] }",
               q"def unapply[..$tparams](o: $tpe): $scalaBoolean = { true }")
-        mat.companionMembers.getOrElseUpdate(name, MSeq()) ++= Vector(v.syntax, apply.syntax, unapply.syntax)
+        mat.objectMembers.getOrElseUpdate(name, MSeq()) ++= Vector(v.syntax, apply.syntax, unapply.syntax)
       }
     }
   }
