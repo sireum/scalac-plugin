@@ -32,24 +32,41 @@ import scala.collection.mutable.{Map => MMap, ArrayBuffer => MSeq, Set => MSet}
 object MetaAnnotationTransformer {
   val sireumB = t"_root_.org.sireum.B"
   val sireumZ = t"_root_.org.sireum.Z"
+  val sireumMP = t"_root_.org.sireum.Z.MP"
   val sireumString = t"_root_.org.sireum.String"
   val sireumOption = t"_root_.org.sireum.Option"
+  val sireumIS = t"_root_.org.sireum.IS"
+  val sireumMS = t"_root_.org.sireum.MS"
+  val sireumImmutable = t"_root_.org.sireum.Immutable"
   val sireumISZ = t"_root_.org.sireum.ISZ"
 
+  val sireumZQ = q"_root_.org.sireum.Z"
   val sireumSomeQ = q"_root_.org.sireum.Some"
   val sireumNoneQ = q"_root_.org.sireum.None"
+  val sireumISQ = q"_root_.org.sireum.IS"
+  val sireumMSQ = q"_root_.org.sireum.MS"
   val sireumISZQ = q"_root_.org.sireum.ISZ"
+
+  val javaString = t"_root_.java.lang.String"
 
   val scalaAny = t"_root_.scala.Any"
   val scalaNothing = t"_root_.scala.Nothing"
+  val scalaAnyVal = t"_root_.scala.AnyVal"
   val scalaAnyRef = t"_root_.scala.AnyRef"
   val scalaBoolean = t"_root_.scala.Boolean"
+  val scalaByte = t"_root_.scala.Byte"
+  val scalaShort = t"_root_.scala.Short"
   val scalaInt = t"_root_.scala.Int"
-  val javaString = t"_root_.java.lang.String"
+  val scalaLong = t"_root_.scala.Long"
+  val scalaBigInt = t"_root_.scala.BigInt"
   val scalaSeq = t"_root_.scala.Seq"
   val scalaOption = t"_root_.scala.Option"
 
+  val scalaIntQ = q"_root_.scala.Int"
+  val scalaLongQ = q"_root_.scala.Long"
+  val scalaBigIntQ = q"_root_.scala.BigInt"
   val scalaSomeQ = q"_root_.scala.Some"
+  val scalaNoneQ = q"_root_.scala.None"
   val scalaListQ = q"_root_.scala.List"
   val scalaSeqQ = q"_root_.scala.Seq"
 
@@ -78,6 +95,53 @@ object MetaAnnotationTransformer {
     }
     (hasHash, hasEqual, hasString)
   }
+
+  def normNum(s: String): String = {
+    val sb = new java.lang.StringBuilder(s.length)
+    for (c <- s) c match {
+      case ',' | ' ' | '_' =>
+      case _ => sb.append(c)
+    }
+    sb.toString
+  }
+
+  def extractInt(tree: Any): Option[BigInt] = tree match {
+    case Lit.Int(n) => Some(n)
+    case Lit.Long(n) => Some(n)
+    case Term.Apply(Term.Name("Z"), Seq(Lit.Int(n))) => Some(n)
+    case Term.Apply(Term.Name("Z"), Seq(Lit.Long(n))) => Some(n)
+    case Term.Apply(Term.Name("Z"), Seq(Lit.String(n))) => Some(BigInt(normNum(n)))
+    case Term.Apply(Term.Select(Term.Apply(Term.Name("StringContext"), Seq(Lit.String(s))), Term.Name("z")), Seq()) =>
+      try Some(BigInt(normNum(s))) catch {
+        case _: Throwable => None
+      }
+    case tree: Term.Interpolate if tree.prefix.value == "z" && tree.args.isEmpty && tree.parts.size == 1 =>
+      tree.parts.head match {
+        case Lit.String(s) => try Some(BigInt(normNum(s))) catch {
+          case _: Throwable => None
+        }
+        case _ => None
+      }
+    case _ => None
+  }
+
+  def extractBoolean(tree: Any): Option[Boolean] = tree match {
+    case Lit.Boolean(b) => Some(b)
+    case Term.Name("T") => Some(true)
+    case Term.Name("F") => Some(false)
+    case _ => None
+  }
+
+  def zCompanionName(name: String): Pat.Var = Pat.Var(Term.Name(s"$$${name}Companion"))
+
+  def iSName(name: String): (Term.Name, Type.Name) = (Term.Name("IS" + name), Type.Name("IS" + name))
+
+  def mSName(name: String): (Term.Name, Type.Name) = (Term.Name("MS" + name), Type.Name("MS" + name))
+
+  def scName(name: String): Type.Name = Type.Name(name + "$Slang")
+
+  def scPrefix(name: String): Term.Name = Term.Name(name.head.toLower + name.tail)
+
 }
 
 import MetaAnnotationTransformer._
@@ -90,6 +154,7 @@ class MetaAnnotationTransformer(input: String,
   val companionMembers: MMap[Vector[String], MSeq[String]] = MMap()
   val classSupers: MMap[Vector[String], MSeq[String]] = MMap()
   val classMembers: MMap[Vector[String], MSeq[String]] = MMap()
+  val classReplace: MMap[Vector[String], String] = MMap()
   val classContructorVals: MMap[Vector[String], MSeq[String]] = MMap()
   val objectMemberReplace: MMap[Vector[String], String] = MMap()
   val classMemberReplace: MMap[Vector[String], String] = MMap()
@@ -97,6 +162,7 @@ class MetaAnnotationTransformer(input: String,
   val et = new EnumTransformer(this)
   val ext = new ExtTransformer(this)
   val mt = new MemoizeTransformer(this)
+  val rt = new RangeTransformer(this)
   val st = new SigTransformer(this)
 
   def transform(): Int = {
@@ -120,7 +186,6 @@ class MetaAnnotationTransformer(input: String,
       case mod"@${ann: Mod.Annot}" =>
         ann.parent match {
           case Some(parent) => ann.syntax match {
-            case "@bits" =>
             case "@datatype" => dt.transform(enclosing, parent)
             case "@enum" => et.transform(enclosing, parent)
             case "@ext" => ext.transform(enclosing, parent)
@@ -129,12 +194,15 @@ class MetaAnnotationTransformer(input: String,
             case "@memoize" => mt.transform(enclosing, parent)
             case "@msig" => st.transform(isImmutable = false, enclosing, parent)
             case "@pure" => // skip
-            case "@range" =>
             case "@record" =>
-            case "@rich" =>
             case "@sig" => st.transform(isImmutable = true, enclosing, parent)
             case "@spec" => // skip
-            case annSyntax => error(tree.pos, s"Unsupported annotation $annSyntax.")
+            case annSyntax =>
+              ann.init.tpe.syntax match {
+                case "range" if ann.init.argss.size == 1 => rt.transform(enclosing, parent, ann.init.argss.head)
+                case "bits" if ann.init.argss.size == 1 =>
+                case _ => error(tree.pos, s"Unsupported annotation $annSyntax.")
+              }
           }
           case _ =>
         }

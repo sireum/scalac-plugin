@@ -249,6 +249,10 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           if (stats ne newStats) tree.asInstanceOf[PackageDef].copy(stats = newStats) else tree
         case tree: ClassDef =>
           enclosing :+= tree.name.decoded
+          mat.classReplace.get(enclosing) match {
+            case Some(text) => return parseTerms(Vector(text)).head.copyPos(tree)
+            case _ =>
+          }
           var r = tree
           mat.classContructorVals.get(enclosing) match {
             case Some(ns) =>
