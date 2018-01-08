@@ -60,8 +60,6 @@ object MetaAnnotationTransformer {
 
   val sireumStringEscape = q"_root_.org.sireum.String.escape"
 
-  lazy val isJs: Boolean = scala.util.Try(Class.forName("scala.scalajs.js.Any", false, getClass.getClassLoader)).isSuccess
-
   def hasHashEqualString(tpe: Type, stats: Seq[Stat]): (Boolean, Boolean, Boolean) = {
     var hasEqual = false
     var hasHash = false

@@ -104,14 +104,11 @@ class MemoizeTransformer(mat: MetaAnnotationTransformer) {
               }
            """
         val cacheVar = {
-          val cacheInit = if (isJs) {
-            q"{ _root_.scala.collection.mutable.Map[$argType, $returnType]() }"
-          } else {
+          val cacheInit =
             q"""{
                   import scala.collection.JavaConverters._
                   (new java.util.concurrent.ConcurrentHashMap[$argType, $returnType]()).asScala
                 }"""
-          }
           q"val cache: scala.collection.mutable.Map[$argType, $returnType] = $cacheInit"
         }
         val newName = Term.Name("_" + tree.name.value)
