@@ -194,29 +194,29 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
             }""",
           q"def apply(s: $sireumString): $sireumOption[$typeName] = try $sireumSomeQ($termName.$$String(s.value)) catch { case _: _root_.java.lang.Throwable => $sireumNoneQ[$typeName]() }",
           q"def unapply(n: $typeName): $scalaOption[$sireumZ] = $scalaSomeQ(n.value)",
-          q"""object Int extends org.sireum.$$ZCompanionInt[$typeName] {
+          q"""object Int extends _root_.org.sireum.$$ZCompanionInt[$typeName] {
               def apply(n: $scalaInt): $typeName = $termName($sireumZQ.MP(n))
               def unapply(n: $typeName): $scalaOption[$scalaInt] =
                 if ($scalaIntQ.MinValue <= n.value && n.value <= $scalaIntQ.MaxValue) $scalaSomeQ(n.value.toBigInt.toInt)
                 else $scalaNoneQ
             }""",
-          q"""object Long extends org.sireum.$$ZCompanionLong[$typeName] {
+          q"""object Long extends _root_.org.sireum.$$ZCompanionLong[$typeName] {
               def apply(n: $scalaLong): $typeName = $termName($sireumZQ.MP(n))
               def unapply(n: $typeName): $scalaOption[$scalaLong] =
                 if ($scalaLongQ.MinValue <= n.value && n.value <= $scalaLongQ.MaxValue) $scalaSomeQ(n.value.toBigInt.toLong)
                 else $scalaNoneQ
             }""",
-          q"""object $$String extends org.sireum.$$ZCompanionString[$typeName] {
+          q"""object $$String extends _root_.org.sireum.$$ZCompanionString[$typeName] {
               def apply(s: $javaString): $typeName = BigInt($sireumZQ.$$String(s).toBigInt)
               def unapply(n: $typeName): $scalaOption[$javaString] = $scalaSomeQ(n.toBigInt.toString)
             }""",
-          q"""object BigInt extends org.sireum.$$ZCompanionBigInt[$typeName] {
+          q"""object BigInt extends _root_.org.sireum.$$ZCompanionBigInt[$typeName] {
                 def apply(n: $scalaBigInt): $typeName = $termName($sireumZQ.MP(n))
                 def unapply(n: $typeName): $scalaOption[$scalaBigInt] = $scalaSomeQ(n.toBigInt)
               }""",
           q"""object $isTermName {
                 def apply[V <: $sireumImmutable](args: V*): $isTypeName[V] = $sireumISQ[$typeName, V](args: _*)
-                def create[V <: $sireumImmutable](size: org.sireum.Z, default: V): $isTypeName[V] = $sireumISQ.create[$typeName, V](size, default)
+                def create[V <: $sireumImmutable](size: $sireumZ, default: V): $isTypeName[V] = $sireumISQ.create[$typeName, V](size, default)
               }""",
           q"""object $msTermName {
                 def apply[V](args: V*): $msTypeName[V] = $sireumMSQ[$typeName, V](args: _*)
