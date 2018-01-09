@@ -256,29 +256,16 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             case _ =>
           }
           var r = tree
-          mat.classContructorVals.get(enclosing) match {
-            case Some(ns) =>
-              val names = ns.toSet
-              val q"$mods class $tpname[..$tparams] $ctorMods(..$params) extends { ..$earlydefns } with ..$parents { $self => ..$stats }" = r
-              var newStats = stats
-              val newParams = for (p <- params) yield {
-                p match {
-                  case p: ValDef =>
-                    val name = p.name.decoded
-                    val uname = TermName(s"_$name")
-                    newStats ::= q"def ${TermName(name)} = $uname".copyPos(p)
-                    if (names.contains(name)) p.copy(name = uname) else p
-                }
-              }
-              r = q"$mods class $tpname[..$tparams] $ctorMods(..$newParams) extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
-            case _ =>
-          }
+
           mat.classMembers.get(enclosing) match {
             case Some(members) =>
               r match {
                 case q"$mods class $tpname[..$tparams] $ctorMods(...$paramss) extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
                   val newStats = rewriteStats(mat.classMemberReplace, stats) ++ parseTerms(members)
-                  r = q"$mods class $tpname[..$tparams] $ctorMods(...$paramss) extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
+                  val newParamss = paramss.map(_.map {
+                    case p: ValDef => p.copy(name = TermName(s"_${p.name.decoded}"))
+                  })
+                  r = q"$mods class $tpname[..$tparams] $ctorMods(...$newParamss) extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
                 case q"$mods trait $tpname[..$tparams] extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
                   val newStats = rewriteStats(mat.classMemberReplace, stats) ++ parseTerms(members)
                   r = q"$mods trait $tpname[..$tparams] extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)

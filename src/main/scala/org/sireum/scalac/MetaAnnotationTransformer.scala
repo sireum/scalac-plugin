@@ -74,8 +74,12 @@ object MetaAnnotationTransformer {
   val datatypeSig = t"_root_.org.sireum.DatatypeSig"
   val immutable = t"_root_.org.sireum.Immutable"
   val mutable = t"_root_.org.sireum.Mutable"
+  val recordSig = t"_root_.org.sireum.RecordSig"
 
   val sireumStringEscape = q"_root_.org.sireum.String.escape"
+  val helperAssign = q"_root_.org.sireum.helper.$$assign"
+  val helperCloneAssign = q"_root_.org.sireum.helper.cloneAssign"
+  val helperClone = q"_root_.org.sireum.helper.clone"
 
   def hasHashEqualString(tpe: Type, stats: Seq[Stat]): (Boolean, Boolean, Boolean) = {
     var hasEqual = false
@@ -155,7 +159,6 @@ class MetaAnnotationTransformer(input: String,
   val classSupers: MMap[Vector[String], MSeq[String]] = MMap()
   val classMembers: MMap[Vector[String], MSeq[String]] = MMap()
   val classReplace: MMap[Vector[String], String] = MMap()
-  val classContructorVals: MMap[Vector[String], MSeq[String]] = MMap()
   val objectMemberReplace: MMap[Vector[String], String] = MMap()
   val classMemberReplace: MMap[Vector[String], String] = MMap()
   val bt = new BitsTransformer(this)
@@ -164,6 +167,7 @@ class MetaAnnotationTransformer(input: String,
   val ext = new ExtTransformer(this)
   val mt = new MemoizeTransformer(this)
   val rt = new RangeTransformer(this)
+  val rdt = new RecordTransformer(this)
   val st = new SigTransformer(this)
 
   def transform(): Int = {
@@ -195,7 +199,7 @@ class MetaAnnotationTransformer(input: String,
             case "@memoize" => mt.transform(enclosing, parent)
             case "@msig" => st.transform(isImmutable = false, enclosing, parent)
             case "@pure" => // skip
-            case "@record" =>
+            case "@record" => rdt.transform(enclosing, parent)
             case "@sig" => st.transform(isImmutable = true, enclosing, parent)
             case "@spec" => // skip
             case annSyntax =>
