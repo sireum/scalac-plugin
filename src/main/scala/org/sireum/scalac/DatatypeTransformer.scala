@@ -68,12 +68,18 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
   }
 
   def transformClass(name: Vector[String], tree: Defn.Class): Unit = {
+    if (tree.templ.early.nonEmpty ||
+      tree.templ.self.decltpe.nonEmpty ||
+      tree.templ.self.name.value != "") {
+      mat.error(tree.pos, "Slang @datatype classes have to be of the form '@record class <id> ... (...) ... { ... }'.")
+      return
+    }
     val q"..$_ class $tname[..$tparams] ..$_ (...$paramss) extends $_" = tree
     val tVars = tparams.map { tp => Type.Name(tp.name.value) }
     val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
     val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats)
     if (paramss.nonEmpty && paramss.head.nonEmpty) {
-      var cparams: Vector[String] = Vector()
+      var vars: Vector[Stat] = Vector()
       var applyParams: Vector[Term.Param] = Vector()
       var oApplyParams: Vector[Term.Param] = Vector()
       var applyArgs: Vector[Term.Name] = Vector()
@@ -82,19 +88,19 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
       for (param <- paramss.head) {
         if (param.decltpe.nonEmpty) {
           val tpeopt = param.decltpe
-          val varName = Term.Name(param.name.value)
+          val paramName = Term.Name(param.name.value)
           val hidden = param.mods.exists({
             case mod"@hidden" => true
             case _ => false
           })
-          cparams :+= varName.value
-          applyParams :+= param"$varName: $tpeopt = this.$varName"
-          oApplyParams :+= param"$varName: $tpeopt"
-          applyArgs :+= varName
+          val varName = Term.Name("_" + paramName.value)
+          vars :+= q"def $paramName = $varName"
+          applyParams :+= param"$paramName: $tpeopt = this.$paramName"
+          oApplyParams :+= param"$paramName: $tpeopt"
+          applyArgs :+= paramName
           if (!hidden) {
-            val Some(tpe) = tpeopt
-            unapplyTypes :+= tpe
-            unapplyArgs :+= varName
+            unapplyTypes :+= tpeopt.get
+            unapplyArgs :+= paramName
           }
         } else {
           mat.error(param.pos, "Unsupported Slang @datatype parameter form.")
@@ -123,12 +129,13 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
           }
         val apply = q"def apply(..${applyParams.toList}): $tpe = { new $tname(..${applyArgs.toList}) }"
         val toString = {
-          var appends = applyArgs.map(arg => q"sb.append($sireumStringEscape($arg))")
-          appends =
-            if (appends.isEmpty) appends
-            else appends.head +: appends.tail.flatMap(a => Vector(q"""sb.append(", ")""", a))
           if (hasString) Vector(q"override def toString: $javaString = { string }")
-          else Vector(q"""override def toString: $javaString = {
+          else {
+            var appends = applyArgs.map(arg => q"sb.append($sireumStringEscape($arg))")
+            appends =
+              if (appends.isEmpty) appends
+              else appends.head +: appends.tail.flatMap(a => Vector(q"""sb.append(", ")""", a))
+            Vector(q"""override def toString: $javaString = {
                             val sb = new _root_.java.lang.StringBuilder
                             sb.append(${Lit.String(tname.value)})
                             sb.append('(')
@@ -136,7 +143,8 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
                             sb.append(')')
                             sb.toString
                           }""",
-            q"override def string: $sireumString = { toString }")
+              q"override def string: $sireumString = { toString }")
+          }
         }
         val content = {
           var fields = List[Term](q"(${Lit.String("type")}, $scalaListQ[$javaString](..${(mat.packageName :+ tname.value).map(x => Lit.String(x)).toList}))")
@@ -145,9 +153,8 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
           }
           q"override lazy val content: $scalaSeq[($javaString, $scalaAny)] = $scalaSeqQ(..${fields.reverse})"
         }
-        mat.classMembers.getOrElseUpdate(name, MSeq()) ++= toString.map(_.syntax) :+ hashCode.syntax :+ equals.syntax :+ apply.syntax :+ content.syntax
+        mat.classMembers.getOrElseUpdate(name, MSeq()) ++= vars.map(_.syntax) ++ toString.map(_.syntax) :+ hashCode.syntax :+ equals.syntax :+ apply.syntax :+ content.syntax
         mat.classSupers.getOrElseUpdate(name, MSeq()) += datatypeSig.syntax
-        mat.classContructorVals.getOrElseUpdate(name, MSeq()) ++= cparams
       }
 
       {
@@ -220,5 +227,4 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
       }
     }
   }
-
 }
