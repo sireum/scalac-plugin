@@ -10,7 +10,7 @@ build:
     pull: true
     options: "-e HOME=/root"
   ci:
-    - sbt publishLocal
+    - sbt "project scalac-plugin" publishLocal
     - git clone https://github.com/sireum/v3-scalac-plugin-test.git sireum-v3-scalac-plugin-test
     - cd sireum-v3-scalac-plugin-test
     - sbt test
