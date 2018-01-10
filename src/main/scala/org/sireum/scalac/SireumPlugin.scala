@@ -246,7 +246,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         case q"package $ref { ..$stats }" =>
           packageName = ref2strings(ref)
           val newStats = companionStats(rewriteStats(mat.objectMemberReplace, stats))
-          if (stats ne newStats) tree.asInstanceOf[PackageDef].copy(stats = newStats) else tree
+          if (stats ne newStats) tree.asInstanceOf[PackageDef].copy(stats = newStats).copyPosT(tree) else tree
         case tree: ClassDef =>
           enclosing :+= tree.name.decoded
           mat.classReplace.get(enclosing) match {
@@ -263,7 +263,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
                 case q"$mods class $tpname[..$tparams] $ctorMods(...$paramss) extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
                   val newStats = rewriteStats(mat.classMemberReplace, stats) ++ parseTerms(members)
                   val newParamss = paramss.map(_.map {
-                    case p: ValDef => p.copy(name = TermName(s"_${p.name.decoded}"))
+                    case p: ValDef => p.copy(name = TermName(s"_${p.name.decoded}")).copyPosT(p.duplicate) // https://github.com/scala/bug/issues/8771
                   })
                   r = q"$mods class $tpname[..$tparams] $ctorMods(...$newParamss) extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
                 case q"$mods trait $tpname[..$tparams] extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
@@ -273,7 +273,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             case _ =>
           }
           mat.classSupers.get(enclosing) match {
-            case Some(supers) => r = r.copy(impl = r.impl.copy(parents = r.impl.parents ++ parseTypes(supers)))
+            case Some(supers) => r = r.copy(impl = r.impl.copy(parents = r.impl.parents ++ parseTypes(supers)).copyPosT(r.impl)).copyPosT(r)
             case _ =>
           }
           r
@@ -293,7 +293,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
               }
           }
           mat.objectSupers.get(enclosing) match {
-            case Some(supers) => r = r.copy(impl = r.impl.copy(parents = r.impl.parents ++ parseTypes(supers)))
+            case Some(supers) => r = r.copy(impl = r.impl.copy(parents = r.impl.parents ++ parseTypes(supers)).copyPosT(r.impl)).copyPosT(r)
             case _ =>
           }
           r
@@ -362,7 +362,9 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
                 case _ => false
               })) {
               hasChanged = true
-              newStats ::= q"object ${stat.name.toTermName} {}".copyPos(stat)
+              val o = q"object ${stat.name.toTermName} {}"
+              o.pos = stat.pos.makeTransparent
+              newStats ::= o
             } else {
             }
           case _ =>
