@@ -54,8 +54,8 @@ class ExtTransformer(mat: MetaAnnotationTransformer) {
             val params = if (stat.paramss.isEmpty) List() else stat.paramss.head.map { p => Term.Name(p.name.value) }
             if (stat.body.structure == dollar) {
             } else stat.body match {
-              case Term.Apply(Term.Select(Term.Apply(Term.Name("StringContext"), _), Term.Name("lDef")), _) =>
-              case expr: Term.Interpolate if expr.prefix.value == "lDef" =>
+              case Term.Apply(Term.Select(Term.Apply(Term.Name("StringContext"), _), Term.Name("l")), _) =>
+              case expr: Term.Interpolate if expr.prefix.value == "l" =>
               case _ =>
                 mat.error(stat.pos, "Invalid expression for Slang @ext object method; it should be either $ or l\"\"\"{ ... }\"\"\".")
                 return
@@ -77,9 +77,9 @@ class ExtTransformer(mat: MetaAnnotationTransformer) {
               mat.error(stat.pos, s"Invalid trait inside Slang @ext object; it has to be of the form: 'trait ${tree.name.value}'")
             }
             mat.objectMemberReplace(name :+ tree.name.value) = q"type ${tree.name} = $extName.${tree.name}".syntax
-          case Term.Apply(Term.Select(Term.Apply(Term.Name("StringContext"), _), Term.Name("lUnit")), _) =>
+          case Term.Apply(Term.Select(Term.Apply(Term.Name("StringContext"), _), Term.Name("l")), _) =>
             // skip
-          case expr: Term.Interpolate if expr.prefix.value == "lUnit" =>
+          case expr: Term.Interpolate if expr.prefix.value == "l" =>
             // skip
           case stat: Defn.Val =>
             // skip
