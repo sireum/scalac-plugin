@@ -171,7 +171,9 @@ class MetaAnnotationTransformer(input: String,
   val st = new SigTransformer(this)
 
   def transform(): Int = {
-    input.parse[Source] match {
+    input.
+      replaceAllLiterally("\r\n", "\n"). // HACK: https://github.com/scalameta/scalameta/issues/443
+      parse[Source] match {
       case Parsed.Success(tree) =>
         for (stat <- tree.stats) {
           transformTree(Vector(), stat)
