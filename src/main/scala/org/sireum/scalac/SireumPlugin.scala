@@ -85,6 +85,8 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
   def assignQ = q"$sireumQ.helper.$$assign"
 
+  def tmatchQ = q"$sireumQ.helper.$$tmatch"
+
   def sireumCPat = pq"$sireumQ.C"
 
   def sireumZIntPat = q"$sireumQ.Z.Int"
@@ -118,6 +120,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
   final class SemanticsTransformer(unit: CompilationUnit,
                                    var inPat: Boolean,
+                                   var inNative: Boolean,
                                    var inTrait: Boolean) extends TypingTransformer(unit) {
     def sup(tree: Tree): Tree = super.transform(tree)
 
@@ -132,6 +135,9 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       case Apply(Select(Apply(Ident(TermName("StringContext")), _), _), _) => trans(tree)
       case _ => assignNoTrans(trans(tree))
     }
+
+    def tmatch(tree: Tree): Tree =
+      q"$tmatchQ($tree)".copyPos(tree)
 
     def pos(tree: Any): Position = tree.asInstanceOf[Tree].pos
 
@@ -160,17 +166,25 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         case Literal(Constant(true)) => q"$sireumT".copyPos(tree)
         case Literal(Constant(false)) => q"$sireumF".copyPos(tree)
         case Literal(Constant(_: Char)) =>
-          (if (inPat) pq"$sireumCPat($tree)" else q"$sireumC($tree)").copyPos(tree)
+          (if (inPat)
+            if (inNative) tree else pq"$sireumCPat($tree)"
+          else q"$sireumC($tree)").copyPos(tree)
         case Literal(Constant(_: Int)) =>
           (if (inPat) pq"$sireumZIntPat($tree)" else q"$sireumZ($tree)").copyPos(tree)
         case Literal(Constant(_: Long)) =>
           (if (inPat) pq"$sireumZLongPat($tree)" else q"$sireumZ($tree)").copyPos(tree)
         case Literal(Constant(_: Float)) =>
-          (if (inPat) pq"$sireumF32Pat($tree)" else q"$sireumF32($tree)").copyPos(tree)
+          (if (inPat)
+            if (inNative) tree else pq"$sireumF32Pat($tree)"
+          else q"$sireumF32($tree)").copyPos(tree)
         case Literal(Constant(_: Double)) =>
-          (if (inPat) pq"$sireumF64Pat($tree)" else q"$sireumF64($tree)").copyPos(tree)
+          (if (inPat)
+            if (inNative) tree else pq"$sireumF64Pat($tree)"
+          else q"$sireumF64($tree)").copyPos(tree)
         case Literal(Constant(_: String)) =>
-          (if (inPat) pq"$sireumStringPat($tree)" else q"$sireumString($tree)").copyPos(tree)
+          (if (inPat)
+            if (inNative) tree else pq"$sireumStringPat($tree)"
+          else q"$sireumString($tree)").copyPos(tree)
         case q"$mods val $pat: $tpt = $rhs" =>
           if (!(rhs == EmptyTree || isDollar(rhs))) q"$mods val $pat: $tpt = ${assign(rhs)}".copyPos(tree) else tree
         case q"$mods var $pat: $tpt = $rhs" =>
@@ -179,6 +193,15 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         case tree@Apply(Select(Ident(TermName(f)), TermName("update")), l) if !inPat && (f == "up" || f == "pat") =>
           tree.copy(args = l.dropRight(1) ++ l.takeRight(1).map(transform)).copyPos(tree)
         case q"$expr1(..$exprs2) = $expr" => q"${trans(expr1)}(..${exprs2.map(trans)}) = ${assign(expr)}".copyPos(tree)
+        case tree: Match =>
+          val oldInNative = inNative
+          inNative = tree.selector match {
+            case q"$_.native" => true
+            case _ => false
+          }
+          val r = tree.copy(selector = tmatch(tree.selector), cases = tree.cases.map(transform).asInstanceOf[List[CaseDef]]).copyPos(tree)
+          inNative = oldInNative
+          r
         case tree: CaseDef =>
           val oldInPat = inPat
           inPat = true
@@ -399,7 +422,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       }
       if (isSireum) {
         val at = new AnnotationTransformer(unit, Vector(), Vector())
-        val st = new SemanticsTransformer(unit, inPat = false, inTrait = false)
+        val st = new SemanticsTransformer(unit, inNative = false, inPat = false, inTrait = false)
         val b1 = st.transform(unit.body)
         val b2 = at.transform(b1)
         val newBody = fixPos(b2)
