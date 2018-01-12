@@ -11,9 +11,9 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
   version := pluginVersion,
   scalacOptions := Seq("-target:jvm-1.8", "-deprecation",
     "-Ydelambdafy:method", "-feature", "-unchecked", "-Xfatal-warnings"),
-  assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false),
-  artifact in(Compile, assembly) := {
-    val art = (artifact in(Compile, assembly)).value
+  assembly / assemblyOption := (assemblyOption in assembly).value.copy(includeScala = false),
+  Compile / assembly / artifact := {
+    val art = (Compile / assembly / artifact).value
     art.withClassifier(Some("all"))
   },
   assemblyShadeRules in assembly := Seq(
@@ -37,7 +37,7 @@ lazy val `scalac-plugin` = project.settings(
   organization := "org.sireum",
   name := "scalac-plugin",
   version := pluginVersion,
-  packageBin in Compile := (assembly in(`scalac-plugin-assembly`, Compile)).value,
+  Compile / packageBin  := (assembly in(`scalac-plugin-assembly`, Compile)).value,
   publishMavenStyle := true,
   publishTo := {
     val nexus = "https://oss.sonatype.org/"
@@ -46,7 +46,7 @@ lazy val `scalac-plugin` = project.settings(
     else
       Some("releases" at nexus + "service/local/staging/deploy/maven2")
   },
-  publishArtifact in Test := false,
+  Test / publishArtifact := false,
   pomIncludeRepository := { _ => false },
   pomExtra :=
     <url>https://github.com/sireum/v3-scalac-plugin/</url>
