@@ -187,7 +187,7 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
             }""",
           q"def apply(n: $scalaInt): $typeName = Int(n)",
           q"def apply(n: $scalaLong): $typeName = Long(n)",
-          q"def apply(n: $sireumMP): $typeName = new $ctorName(n)",
+          q"def apply(n: $sireumMP): $typeName = new $ctorName(check(n))",
           q"""def apply(n: $sireumZ): $typeName = n match {
               case n: $sireumMP => $termName(n)
               case _ => halt(s"Unsupported $$Name creation from $${n.Name}.")
