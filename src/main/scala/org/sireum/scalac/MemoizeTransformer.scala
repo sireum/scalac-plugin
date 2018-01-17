@@ -88,11 +88,13 @@ class MemoizeTransformer(mat: MetaAnnotationTransformer) {
         }
         val body =
           q"""{
-                def _internal: $returnType = {
+                def _internal: $returnType = { $$body$$ }
+
+                {
                   ..${inits.reverse}
                   ..${assertions.reverse}
-                  $$body$$
                 }
+
                 val arg = $arg
                 cache.get(arg) match {
                   case scala.Some(r) => return r
