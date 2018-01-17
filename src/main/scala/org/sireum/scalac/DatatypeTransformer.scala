@@ -119,7 +119,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
             else p"case (o: $tname[..$tVars] @unchecked) => isEqual(o)", p"case _ => false")
             q"override def equals(o: $scalaAny): $scalaBoolean = { if (this eq o.asInstanceOf[$scalaAnyRef]) true else o match { ..case ${eCases.toList} } }"
           } else {
-            val eCaseEqs = unapplyArgs.map(arg => q"$arg == o.$arg")
+            val eCaseEqs = unapplyArgs.map(arg => q"this.$arg == o.$arg")
             val eCaseExp = if (eCaseEqs.isEmpty) q"true" else eCaseEqs.tail.foldLeft(eCaseEqs.head)((t1, t2) => q"$t1 && $t2")
             val eCases =
               Vector(if (tparams.isEmpty) p"case o: $tname => if (this.hashCode != o.hashCode) false else $eCaseExp"
@@ -131,7 +131,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
         val toString = {
           if (hasString) Vector(q"override def toString: $javaString = { string }")
           else {
-            var appends = applyArgs.map(arg => q"sb.append($sireumStringEscape($arg))")
+            var appends = applyArgs.map(arg => q"sb.append($sireumStringEscape(this.$arg))")
             appends =
               if (appends.isEmpty) appends
               else appends.head +: appends.tail.flatMap(a => Vector(q"""sb.append(", ")""", a))
@@ -149,7 +149,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
         val content = {
           var fields = List[Term](q"(${Lit.String("type")}, $scalaListQ[$javaString](..${(mat.packageName :+ tname.value).map(x => Lit.String(x)).toList}))")
           for (x <- applyArgs) {
-            fields ::= q"(${Lit.String(x.value)}, $x)"
+            fields ::= q"(${Lit.String(x.value)}, this.$x)"
           }
           q"override lazy val content: $scalaSeq[($javaString, $scalaAny)] = $scalaSeqQ(..${fields.reverse})"
         }

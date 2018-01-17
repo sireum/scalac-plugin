@@ -113,7 +113,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
           varNames :+= varName
           vars :+= q"def $paramName = $varName"
           if (isVar) {
-            vars :+= q"def ${Term.Name(paramName.value + "_=")}($paramName: $tpeopt): this.type = { dirty = true; $varName = $paramName; this }"
+            vars :+= q"def ${Term.Name(paramName.value + "_=")}($paramName: $tpeopt): this.type = { $varName = $paramName; this }"
           }
           applyParams :+= param"$paramName: $tpeopt = this.$paramName"
           oApplyParams :+= param"$paramName: $tpeopt"
@@ -130,7 +130,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
 
       {
         val clone = {
-          val cloneNew = q"val r: $tpe = { new $tname(..${applyArgs.toList.map(arg => q"$helperCloneAssign($arg)")}) }"
+          val cloneNew = q"val r: $tpe = { new $tname(..${applyArgs.toList.map(arg => q"$helperCloneAssign(this.$arg)")}) }"
           q"override def $$clone: $tpe = { ..${(cloneNew +: inVars :+ q"r").toList} }"
         }
 
@@ -138,11 +138,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
           if (hasHash) q"override lazy val hashCode: $scalaInt = hash.hashCode"
           else if (hasEqual) q"override lazy val hashCode: $scalaInt = 0"
           else {
-            val hashCodeDirty = q"private var dirty: $scalaBoolean = true"
-            val hashCodeVar = q"private var _hashCode: $scalaInt = _"
-            val hashCodeDef = q"private def computeHashCode: $scalaInt = $scalaSeqQ(this.getClass, ..${unapplyArgs.toList}).hashCode"
-            vars = (hashCodeDirty +: vars) :+ hashCodeVar :+ hashCodeDef
-            q"override def hashCode: $scalaInt = { if (dirty) { dirty = false; _hashCode = computeHashCode}; _hashCode }"
+            q"override def hashCode: $scalaInt = $scalaSeqQ(this.getClass, ..${unapplyArgs.toList}).hashCode"
           }
         val equals =
           if (hasEqual) {
@@ -150,7 +146,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
             else p"case (o: $tname[..$tVars] @unchecked) => isEqual(o)", p"case _ => false")
             q"override def equals(o: $scalaAny): $scalaBoolean = { if (this eq o.asInstanceOf[$scalaAnyRef]) true else o match { ..case ${eCases.toList} } }"
           } else {
-            val eCaseEqs = unapplyArgs.map(arg => q"$arg == o.$arg")
+            val eCaseEqs = unapplyArgs.map(arg => q"this.$arg == o.$arg")
             val eCaseExp = if (eCaseEqs.isEmpty) q"true" else eCaseEqs.tail.foldLeft(eCaseEqs.head)((t1, t2) => q"$t1 && $t2")
             val eCases =
               Vector(if (tparams.isEmpty) p"case o: $tname => if (this.hashCode != o.hashCode) false else $eCaseExp"
@@ -162,7 +158,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
         val toString = {
           if (hasString) Vector(q"override def toString: $javaString = { string }")
           else {
-            var appends = applyArgs.map(arg => q"sb.append($sireumStringEscape($arg))")
+            var appends = applyArgs.map(arg => q"sb.append($sireumStringEscape(this.$arg))")
             appends =
               if (appends.isEmpty) appends
               else appends.head +: appends.tail.flatMap(a => Vector(q"""sb.append(", ")""", a))
