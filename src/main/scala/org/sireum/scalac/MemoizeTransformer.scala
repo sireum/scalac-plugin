@@ -78,27 +78,32 @@ class MemoizeTransformer(mat: MetaAnnotationTransformer) {
           if (paramTypes.length == 1) (paramTypes.head, params.head)
           else (t"(..${paramTypes.toList})", q"(..${params.toList})")
         var inits = List[Stat]()
-        var assertions = List[Stat]()
+        var stats = List[Stat]()
         var hiddenVars = List[Stat]()
         for ((p, pt) <- hiddenParams.zip(hiddenParamTypes).toList) {
           val pvar = Term.Name("_" + p.value)
           hiddenVars :+= q"var ${Pat.Var(pvar)}: ${Some(pt)} = null"
           inits :+= q"""if ($pvar == null) $pvar = $p"""
-          assertions :+= q"""assert($pvar eq $p, "@hidden parameter " + ${Lit.String(p.value)} + " differs from the first invocation argument.")"""
+          stats :+= q"""refresh ||= $pvar ne $p"""
         }
         val body =
           q"""{
+                var refresh = false
                 def _internal: $returnType = { $$body$$ }
 
                 {
                   ..${inits.reverse}
-                  ..${assertions.reverse}
+                  ..${stats.reverse}
                 }
 
                 val arg = $arg
-                cache.get(arg) match {
-                  case scala.Some(r) => return r
-                  case _ =>
+                if (!refresh) {
+                  cache.get(arg) match {
+                    case scala.Some(r) => return r
+                    case _ =>
+                  }
+                } else {
+                  cache.clear()
                 }
                 val r = _internal
                 cache(arg) = r
