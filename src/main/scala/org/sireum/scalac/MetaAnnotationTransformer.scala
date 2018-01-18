@@ -32,7 +32,6 @@ import scala.collection.mutable.{Map => MMap, ArrayBuffer => MSeq, Set => MSet}
 object MetaAnnotationTransformer {
   val sireumB = t"_root_.org.sireum.B"
   val sireumZ = t"_root_.org.sireum.Z"
-  val sireumMP = t"_root_.org.sireum.Z.MP"
   val sireumString = t"_root_.org.sireum.String"
   val sireumOption = t"_root_.org.sireum.Option"
   val sireumIS = t"_root_.org.sireum.IS"
