@@ -112,8 +112,12 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
           }
           varNames :+= varName
           vars :+= q"def $paramName = $varName"
+          val getterName = Term.Name(s"get${paramName.value.head.toUpper}${paramName.value.substring(1)}")
+          vars :+= q"def $getterName = $varName"
           if (isVar) {
             vars :+= q"def ${Term.Name(paramName.value + "_=")}($paramName: $tpeopt): this.type = { $varName = $paramName; this }"
+            val setterName = Term.Name(s"set${paramName.value.head.toUpper}${paramName.value.substring(1)}")
+            vars :+= q"def $setterName($paramName: $tpeopt): this.type = { $varName = $paramName; this }"
           }
           applyParams :+= param"$paramName: $tpeopt = this.$paramName"
           oApplyParams :+= param"$paramName: $tpeopt"

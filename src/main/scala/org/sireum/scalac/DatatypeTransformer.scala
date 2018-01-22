@@ -95,6 +95,8 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
           })
           val varName = Term.Name("_" + paramName.value)
           vars :+= q"def $paramName = $varName"
+          val getterName = Term.Name(s"get${paramName.value.head.toUpper}${paramName.value.substring(1)}")
+          vars :+= q"def $getterName = $varName"
           applyParams :+= param"$paramName: $tpeopt = this.$paramName"
           oApplyParams :+= param"$paramName: $tpeopt"
           applyArgs :+= paramName
