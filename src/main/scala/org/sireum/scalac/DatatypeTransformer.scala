@@ -153,7 +153,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
           for (x <- applyArgs) {
             fields ::= q"(${Lit.String(x.value)}, this.$x)"
           }
-          q"override lazy val content: $scalaSeq[($javaString, $scalaAny)] = $scalaSeqQ(..${fields.reverse})"
+          q"override lazy val $$content: $scalaSeq[($javaString, $scalaAny)] = $scalaSeqQ(..${fields.reverse})"
         }
         mat.classMembers.getOrElseUpdate(name, MSeq()) ++= vars.map(_.syntax) ++ toString.map(_.syntax) :+ hashCode.syntax :+ equals.syntax :+ apply.syntax :+ content.syntax
         mat.classSupers.getOrElseUpdate(name, MSeq()) += datatypeSig.syntax
@@ -210,7 +210,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
           else Vector(q"""override def toString: $javaString = { ${Lit.String(tname.value + "()")} }""",
             q"override def string: $sireumString = { toString }")
         }
-        val content = q"override lazy val content: $scalaSeq[($javaString, $scalaAny)] = $scalaSeqQ((${Lit.String("type")}, $scalaListQ[$javaString](..${(mat.packageName :+ tname.value).map(x => Lit.String(x)).toList})))"
+        val content = q"override lazy val $$content: $scalaSeq[($javaString, $scalaAny)] = $scalaSeqQ((${Lit.String("type")}, $scalaListQ[$javaString](..${(mat.packageName :+ tname.value).map(x => Lit.String(x)).toList})))"
         mat.classMembers.getOrElseUpdate(name, MSeq()) ++= toString.map(_.syntax) :+ hashCode.syntax :+ equals.syntax :+ content.syntax
         mat.classSupers.getOrElseUpdate(name, MSeq()) += datatypeSig.syntax
       }
@@ -218,12 +218,12 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
       {
         val (v, apply, unapply) =
           if (tparams.isEmpty)
-            (q"private[this] val v: $scalaAnyRef = { new $tname() }",
-              q"def apply(): $tpe = { v.asInstanceOf[$tpe] }",
+            (q"private[this] val $$v: $scalaAnyRef = { new $tname() }",
+              q"def apply(): $tpe = { $$v.asInstanceOf[$tpe] }",
               q"def unapply(o: $tpe): $scalaBoolean = { true }")
           else
-            (q"private[this] val v: $scalaAnyRef = { new ${t"$tname[..${tparams.map(_ => scalaNothing)}]"}() }",
-              q"def apply[..$tparams](): $tpe = { v.asInstanceOf[$tpe] }",
+            (q"private[this] val $$v: $scalaAnyRef = { new ${t"$tname[..${tparams.map(_ => scalaNothing)}]"}() }",
+              q"def apply[..$tparams](): $tpe = { $$v.asInstanceOf[$tpe] }",
               q"def unapply[..$tparams](o: $tpe): $scalaBoolean = { true }")
         mat.objectMembers.getOrElseUpdate(name, MSeq()) ++= Vector(v.syntax, apply.syntax, unapply.syntax)
       }
