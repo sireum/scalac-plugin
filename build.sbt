@@ -2,7 +2,7 @@ val scalaVer = "2.12.4"
 
 val pluginVersion = "3.2.3-SNAPSHOT"
 
-val metaVersion = "2.1.5"
+val metaVersion = "2.1.7"
 
 lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
   organization := "org.sireum",
