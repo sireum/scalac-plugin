@@ -1,12 +1,12 @@
 val scalaVer = "2.12.4"
 
-val pluginVersion = "3.2.3-SNAPSHOT"
+val pluginVersion = "3.2.3"
 
 val metaVersion = "2.1.7"
 
 addCommandAlias("publish-local", "; project scalac-plugin; publishLocal")
 addCommandAlias("publish-signed", "; project scalac-plugin; publishSigned")
-addCommandAlias("release", "; project scalac-plugin; publishSigned")
+addCommandAlias("release", "; project scalac-plugin; sonatypeRelease")
 
 lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
   organization := "org.sireum",
