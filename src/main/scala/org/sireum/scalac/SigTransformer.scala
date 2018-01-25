@@ -41,6 +41,25 @@ class SigTransformer(mat: MetaAnnotationTransformer) {
           mat.error(tree.pos, s"Slang $ann traits have to be of the form '$ann trait <id> ... { ... }'.")
           return
         }
+        val tname = tree.name
+        val tparams = tree.tparams
+        val tVars = tparams.map { tp => Type.Name(tp.name.value) }
+        val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
+        val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats, s => mat.error(tree.pos, s))
+        val equals =
+          if (hasEqual) {
+            val eCases =
+              List(if (tparams.isEmpty) p"case o: $tname => isEqual(o)"
+              else p"case (o: $tname[..$tVars] @unchecked) => isEqual(o)",
+                p"case _ => halt(${Lit.String("Invalid equality test between ")} + this.getClass + ${Lit.String(" and ")} + o.getClass)")
+            List(q"override def $$hasEquals = true",
+              q"override def equals(o: $scalaAny): $scalaBoolean = { o match { ..case $eCases } }")
+          } else List()
+        val hash = if (hasHash) List(q"override def hashCode: $scalaInt = { hash.hashCode }") else List()
+        val toString =
+          if (hasString) List(q"override def toString: $javaString = { string.value }")
+          else List()
+        mat.classMembers.getOrElseUpdate(name, MSeq()) ++= (hash.map(_.syntax) ++ equals.map(_.syntax) ++ toString.map(_.syntax))
         mat.classSupers.getOrElseUpdate(name, MSeq()) += (if (isImmutable) immutable else mutable).syntax
       case _ =>
         val ann = if (isImmutable) "@sig" else "@msig"

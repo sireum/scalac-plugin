@@ -80,7 +80,7 @@ object MetaAnnotationTransformer {
   val helperCloneAssign = q"_root_.org.sireum.helper.cloneAssign"
   val helperClone = q"_root_.org.sireum.helper.clone"
 
-  def hasHashEqualString(tpe: Type, stats: Seq[Stat]): (Boolean, Boolean, Boolean) = {
+  def hasHashEqualString(tpe: Type, stats: Seq[Stat], error: String => Unit): (Boolean, Boolean, Boolean) = {
     var hasEqual = false
     var hasHash = false
     var hasString = false
@@ -94,6 +94,14 @@ object MetaAnnotationTransformer {
             case _ =>
           }
         case _ =>
+      }
+    }
+    if (hasHash != hasEqual) {
+      if (hasHash) {
+        error(s"Method hash is defined, but isEqual is not.")
+      }
+      else {
+        ("Method isEqual is defined, but hash is not.")
       }
     }
     (hasHash, hasEqual, hasString)
