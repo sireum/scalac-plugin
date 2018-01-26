@@ -84,7 +84,7 @@ object MetaAnnotationTransformer {
     var hasEqual = false
     var hasHash = false
     var hasString = false
-    for (stat <- stats if !(hasEqual && hasHash)) {
+    for (stat <- stats if !(hasEqual && hasHash && hasString)) {
       stat match {
         case stat: Defn.Def =>
           stat.name.value match {
