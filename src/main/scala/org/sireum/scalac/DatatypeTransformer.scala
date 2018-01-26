@@ -57,7 +57,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
           List(if (tparams.isEmpty) p"case o: $tname => isEqual(o)"
           else p"case (o: $tname[..$tVars] @unchecked) => isEqual(o)",
             p"case _ => halt(${Lit.String("Invalid equality test between ")} + this.getClass + ${Lit.String(" and ")} + o.getClass)")
-        List(q"final override val $$hasEquals = true",
+        List(q"final protected override val $$hasEquals = true",
           q"override def equals(o: $scalaAny): $scalaBoolean = { o match { ..case $eCases } }")
       } else List()
     val hash = if (hasHash) List(q"override def hashCode: $scalaInt = { hash.hashCode }") else List()
@@ -128,7 +128,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
             val eCases =
               Vector(if (tparams.isEmpty) p"case o: $tname => if (this.hashCode != o.hashCode) false else $eCaseExp"
               else p"case (o: $tname[..$tVars] @unchecked) => if (this.hashCode != o.hashCode) false else $eCaseExp",
-                p"case _ => halt(${Lit.String("Invalid equality test between ")} + this.getClass + ${Lit.String(" and ")} + o.getClass)")
+                p"case _ => false")
             q"override def equals(o: $scalaAny): $scalaBoolean = { if ($$hasEquals) super.equals(o) else if (this eq o.asInstanceOf[$scalaAnyRef]) true else o match { ..case ${eCases.toList} } }"
           }
         val apply = q"def apply(..${applyParams.toList}): $tpe = { new $tname(..${applyArgs.toList}) }"
@@ -204,7 +204,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
             val eCases =
               Vector(if (tparams.isEmpty) p"case o: $tname => true"
               else p"case (o: $tname[..$tVars] @unchecked) => true",
-                p"case _ => halt(${Lit.String("Invalid equality test between ")} + this.getClass + ${Lit.String(" and ")} + o.getClass)")
+                p"case _ => false")
             q"override def equals(o: $scalaAny): $scalaBoolean = { if ($$hasEquals) super.equals(o) else if (this eq o.asInstanceOf[$scalaAnyRef]) true else o match { ..case ${eCases.toList} } }"
           }
         val toString = {
