@@ -200,6 +200,7 @@ class MetaAnnotationTransformer(input: String,
       case mod"@${ann: Mod.Annot}" =>
         ann.parent match {
           case Some(parent) => ann.syntax match {
+            case "@contract" => // skip
             case "@datatype" => dt.transform(enclosing, parent)
             case "@enum" => et.transform(enclosing, parent)
             case "@ext" => ext.transform(enclosing, parent)
