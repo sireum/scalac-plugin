@@ -279,7 +279,9 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             case _ =>
           }
           var r = tree
-
+          if (mat.classSealed.contains(enclosing)) {
+            r = r.copy(mods = r.mods | global.Flag.SEALED).copyPosT(r)
+          }
           mat.classMembers.get(enclosing) match {
             case Some(members) =>
               r match {
