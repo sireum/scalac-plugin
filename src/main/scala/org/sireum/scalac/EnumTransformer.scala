@@ -42,7 +42,7 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
           return
         }
         var decls = Vector[Stat](
-          q"""sealed trait Type extends _root_.scala.Ordered[Type]  {
+          q"""sealed trait Type extends _root_.org.sireum.Immutable with _root_.scala.Ordered[Type]  {
                 def ordinal: $sireumZ
 
                 def name: $sireumString
@@ -52,6 +52,8 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
                 final def isEqual(other: Type): $sireumB = this == other
 
                 final def compare(that: Type): $scalaInt = this.ordinal.compareTo(that.ordinal)
+
+                final def string: $sireumString = toString
               }
            """,
           q"""final def byName(name: $sireumString): $sireumOption[Type] =
