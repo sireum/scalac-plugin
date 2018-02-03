@@ -64,7 +64,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
     val toString =
       if (hasString) List(q"override def toString: $javaString = { string.value }")
       else List()
-    mat.classSealed.add(name)
+    mat.adtTraits.add(name)
     mat.classMembers.getOrElseUpdate(name, MSeq()) ++= (hash.map(_.syntax) ++ equals.map(_.syntax) ++ toString.map(_.syntax))
     mat.classSupers.getOrElseUpdate(name, MSeq()) += datatypeSig.syntax
   }

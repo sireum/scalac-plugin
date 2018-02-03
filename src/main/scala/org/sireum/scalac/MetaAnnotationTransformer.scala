@@ -163,7 +163,7 @@ class MetaAnnotationTransformer(input: String,
 
   val objectSupers: MMap[Vector[String], MSeq[String]] = MMap()
   val objectMembers: MMap[Vector[String], MSeq[String]] = MMap()
-  val classSealed: MSet[Vector[String]] = MSet()
+  val adtTraits: MSet[Vector[String]] = MSet()
   val classSupers: MMap[Vector[String], MSeq[String]] = MMap()
   val classMembers: MMap[Vector[String], MSeq[String]] = MMap()
   val classReplace: MMap[Vector[String], String] = MMap()
