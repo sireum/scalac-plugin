@@ -222,6 +222,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
                                     var packageName: Vector[String],
                                     var enclosing: Vector[String]) extends TypingTransformer(unit) {
 
+    val untraitMask: global.FlagSet = ~global.Flag.TRAIT
     val mat = new MetaAnnotationTransformer(new String(unit.source.content), Vector(),
       (offset, msg) => global.reporter.error(unit.position(offset), msg))
     val rwTree: MMap[Tree, Tree] = {
@@ -279,7 +280,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             case _ =>
           }
           var r = tree
-          if (mat.classSealed.contains(enclosing)) {
+          if (mat.adtTraits.contains(enclosing)) {
             r = r.copy(mods = r.mods | global.Flag.SEALED).copyPosT(r)
           }
           mat.classMembers.get(enclosing) match {
@@ -290,7 +291,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
                   val newParamss = paramss.map(_.map {
                     case p: ValDef => p.copy(name = TermName(s"_${p.name.decoded}")).copyPosT(p.duplicate) // https://github.com/scala/bug/issues/8771
                   })
-                  r = q"$mods class $tpname[..$tparams] $ctorMods(...$newParamss) extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
+                  r = q"${r.mods | global.Flag.FINAL} class $tpname[..$tparams] $ctorMods(...$newParamss) extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
                 case q"$mods trait $tpname[..$tparams] extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
                   val newStats = rewriteStats(mat.classMemberReplace, stats) ++ parseTerms(members)
                   r = q"$mods trait $tpname[..$tparams] extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
