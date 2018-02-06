@@ -145,10 +145,6 @@ object MetaAnnotationTransformer {
 
   def zCompanionName(name: String): Pat.Var = Pat.Var(Term.Name(s"$$${name}Companion"))
 
-  def iSName(name: String): (Term.Name, Type.Name) = (Term.Name("IS" + name), Type.Name("IS" + name))
-
-  def mSName(name: String): (Term.Name, Type.Name) = (Term.Name("MS" + name), Type.Name("MS" + name))
-
   def scName(name: String): Type.Name = Type.Name(name + "$Slang")
 
   def scPrefix(name: String): Term.Name = Term.Name(name.head.toLower + name.tail)

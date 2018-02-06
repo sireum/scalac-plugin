@@ -87,8 +87,6 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
         val typeName = Type.Name(cname)
         val termName = Term.Name(cname)
         val iTermName = zCompanionName(cname)
-        val (isTermName, isTypeName) = iSName(cname)
-        val (msTermName, msTypeName) = mSName(cname)
         val lowerTermName = scPrefix(cname)
         val ctorName = Type.Name(cname)
         val nameStr = Lit.String(cname)
@@ -146,8 +144,6 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
               }""".syntax
 
         val objectMembers = (Seq(
-          q"type $isTypeName[T <: $sireumImmutable] = $sireumIS[$typeName, T]",
-          q"type $msTypeName[T] = $sireumMS[$typeName, T];",
           q"val Name: $javaString = $nameStr",
           q"lazy val Min: $typeName = if (hasMin) new $ctorName($sireumZQ.MP($min)) else halt($minUnsupported)",
           q"lazy val Max: $typeName = if (hasMax) new $ctorName($sireumZQ.MP($max)) else halt($maxUnsupported)",
@@ -209,14 +205,6 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
           q"""object BigInt extends _root_.org.sireum.$$ZCompanionBigInt[$typeName] {
                 def apply(n: $scalaBigInt): $typeName = $termName($sireumZQ.MP(n))
                 def unapply(n: $typeName): $scalaOption[$scalaBigInt] = $scalaSomeQ(n.toBigInt)
-              }""",
-          q"""object $isTermName {
-                def apply[V <: $sireumImmutable](args: V*): $isTypeName[V] = $sireumISQ[$typeName, V](args: _*)
-                def create[V <: $sireumImmutable](size: $typeName, default: V): $isTypeName[V] = $sireumISQ.create[$typeName, V](size, default)
-              }""",
-          q"""object $msTermName {
-                def apply[V](args: V*): $msTypeName[V] = $sireumMSQ[$typeName, V](args: _*)
-                def create[V](size: $typeName, default: V): $msTypeName[V] = $sireumMSQ.create[$typeName, V](size, default)
               }""",
           q"""implicit class $scTypeName(val sc: _root_.scala.StringContext) {
                 object $lowerTermName {

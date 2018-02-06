@@ -101,8 +101,6 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
         val typeName = Type.Name(cname)
         val termName = Term.Name(cname)
         val iTermName = zCompanionName(cname)
-        val (isTermName, isTypeName) = iSName(cname)
-        val (msTermName, msTypeName) = mSName(cname)
         val lowerTermName = scPrefix(cname)
         val ctorName = Type.Name(cname)
         val scTypeName = scName(cname)
@@ -284,8 +282,6 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
                 def boxer = $termName.Boxer
               }""".syntax
         val objectMembers = Seq(
-          q"type $isTypeName[T <: $sireumImmutable] = $sireumIS[$typeName, T]",
-          q"type $msTypeName[T] = $sireumMS[$typeName, T]",
           q"object Boxer extends $boxerType { def make(o: $valueTypeName): $typeName = new $ctorName(o) }",
           q"val Name: $javaString = $nameStr",
           q"val BitWidth: $scalaInt = ${Lit.Int(width)}",
@@ -322,14 +318,6 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
               def unapply(n: $typeName): $scalaOption[$javaString] = $scalaSomeQ(n.toBigInt.toString)
             }""",
           bigIntObject,
-          q"""object $isTermName {
-              def apply[V <: $sireumImmutable](args: V*): $isTypeName[V] = $sireumISQ[$typeName, V](args: _*)
-              def create[V <: $sireumImmutable](size: $typeName, default: V): $isTypeName[V] = $sireumISQ.create[$typeName, V](size, default)
-            }""",
-          q"""object $msTermName {
-              def apply[V](args: V*): $msTypeName[V] = $sireumMSQ[$typeName, V](args: _*)
-              def create[V](size: $typeName, default: V): $msTypeName[V] = $sireumMSQ.create[$typeName, V](size, default)
-            }""",
           q"""implicit class $scTypeName(val sc: _root_.scala.StringContext) {
               object $lowerTermName {
                 def apply(args: $scalaAny*): $typeName = {
