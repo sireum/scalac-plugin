@@ -32,21 +32,34 @@ class MemoizeTransformer(mat: MetaAnnotationTransformer) {
   def transform(name: Vector[String], tree: Tree): Unit = {
     tree match {
       case tree: Defn.Def =>
-        if (tree.paramss.size != 1 || tree.paramss.head.isEmpty) {
-          mat.error(tree.pos, "Slang @memoize methods should only have one list of non-empty parameters.")
-          return
-        }
-        if (tree.decltpe.isEmpty) {
-          mat.error(tree.pos, "Slang @memoize methods should be explicitly typed.")
-          return
-        }
         val rwMap = tree.parent.flatMap(_.parent) match {
           case Some(q"package $_ { ..$_ }") => mat.objectMemberReplace
           case Some(_: Defn.Object) => mat.objectMemberReplace
           case Some(_: Defn.Class) | Some(_: Defn.Trait) => mat.classMemberReplace
           case x =>
-            mat.error(tree.pos, s"Slang @memoize methods should only be inside an object, a class, or a trait: ${x}.")
+            mat.error(tree.pos, s"Slang @memoize methods should only be inside an object, a class, or a trait: $x.")
             return
+        }
+
+        if (tree.paramss.isEmpty) {
+          if (tree.tparams.nonEmpty) {
+            mat.error(tree.pos, s"Slang @memoize parameter-less methods should not have type parameters.")
+            return
+          }
+          rwMap(name :+ tree.name.value) = Defn.Val(List(Mod.Lazy()), List[Pat](Pat.Var(Term.Name(tree.name.value))),
+            tree.decltpe, q"{ def init: ${tree.decltpe} = { ${tree.body} }; init }" ).syntax
+
+          return
+        }
+
+        if (tree.paramss.size > 1 || tree.paramss.head.isEmpty) {
+          mat.error(tree.pos, "Slang @memoize methods should only have at most one list of non-empty parameters.")
+          return
+        }
+
+        if (tree.decltpe.isEmpty) {
+          mat.error(tree.pos, "Slang @memoize methods should be explicitly typed.")
+          return
         }
         val returnType = tree.decltpe.get
         var allParamTypes = Vector[Type]()
