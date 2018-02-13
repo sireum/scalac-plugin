@@ -47,7 +47,7 @@ class MemoizeTransformer(mat: MetaAnnotationTransformer) {
             return
           }
           rwMap(name :+ tree.name.value) = Defn.Val(List(Mod.Lazy()), List[Pat](Pat.Var(Term.Name(tree.name.value))),
-            tree.decltpe, q"{ def init: ${tree.decltpe} = { ${tree.body} }; init }" ).syntax
+            tree.decltpe, q"{ def init: ${tree.decltpe} = { $$body$$ }; init }" ).syntax
 
           return
         }
