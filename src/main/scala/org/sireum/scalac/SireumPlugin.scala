@@ -211,6 +211,12 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           val b = transform(tree.body)
           if ((pat ne tree.pat) || (g ne tree.guard) || (b ne tree.body)) tree.copy(pat = pat, guard = g, body = b).copyPos(tree) else tree
         case q"(..$exprs)" if exprs.size > 1 => q"(..${exprs.map(assign)})".copyPos(tree)
+        case tree: Return =>
+          if (tree.expr == EmptyTree || tree == q"()") {
+            return tree
+          } else {
+            tree.copy(expr = assign(tree.expr)).copyPos(tree)
+          }
         case _ =>
           super.transform(tree)
       }
