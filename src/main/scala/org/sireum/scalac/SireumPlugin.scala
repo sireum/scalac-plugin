@@ -236,6 +236,12 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       new java.util.IdentityHashMap[Tree, Tree].asScala
     }
 
+    val classParamMods: Modifiers = {
+      val q"$_ class $_[..$_] $_(...$paramss)" = q"class A(x: Int)"
+      val ps = paramss.head.asInstanceOf[List[ValDef]]
+      ps.head.mods
+    }
+
     {
       val errorOffset = mat.transform()
       if (errorOffset >= 0) {
@@ -293,13 +299,13 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             case Some(members) =>
               r match {
                 case q"$mods class $tpname[..$tparams] $ctorMods(...$paramss) extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
-                  val newStats = rewriteStats(mat.classMemberReplace, stats) ++ parseTerms(members)
+                  val newStats = parseTerms(members) ++ rewriteStats(mat.classMemberReplace, stats)
                   val newParamss = paramss.map(_.map {
-                    case p: ValDef => p.copy(name = TermName(s"_${p.name.decoded}")).copyPosT(p.duplicate) // https://github.com/scala/bug/issues/8771
+                    case p: ValDef => p.copy(mods = classParamMods, name = TermName(s"__${p.name.decoded}")).copyPosT(p.duplicate) // https://github.com/scala/bug/issues/8771
                   })
                   r = q"${r.mods | global.Flag.FINAL} class $tpname[..$tparams] $ctorMods(...$newParamss) extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
                 case q"$mods trait $tpname[..$tparams] extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
-                  val newStats = rewriteStats(mat.classMemberReplace, stats) ++ parseTerms(members)
+                  val newStats = parseTerms(members) ++ rewriteStats(mat.classMemberReplace, stats)
                   r = q"$mods trait $tpname[..$tparams] extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
               }
             case _ =>

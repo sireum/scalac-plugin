@@ -95,10 +95,60 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
             case mod"@hidden" => true
             case _ => false
           })
-          val varName = Term.Name("_" + paramName.value)
-          vars :+= q"def $paramName = $varName"
+          val paramVarName = Term.Name("__" + paramName.value)
           val getterName = Term.Name(s"get${paramName.value.head.toUpper}${paramName.value.substring(1)}")
-          vars :+= q"def $getterName = $varName"
+          tpeopt match {
+            case Some(t"Option[$_]") =>
+              val tpe = tpeopt.get
+              val Type.Apply(_, List(t)) = tpe
+              val bvarName = Term.Name("_b" + paramName.value)
+              val varName = Term.Name("_" + paramName.value)
+              val pvarName = Pat.Var(varName)
+              val pbvarName = Pat.Var(bvarName)
+              vars :+= q"private[this] val $pbvarName: _root_.scala.Boolean = $paramVarName.isEmpty.value"
+              vars :+= q"private[this] val $pvarName: $t = $paramVarName.getOrElse(null.asInstanceOf[$t])"
+              vars :+= q"def $paramName: $tpe = if ($bvarName) None() else Some($varName)"
+              vars :+= q"def $getterName: $tpe = $paramName"
+            case Some(t"MOption[$_]") =>
+              val tpe = tpeopt.get
+              val Type.Apply(_, List(t)) = tpe
+              val bvarName = Term.Name("_b" + paramName.value)
+              val varName = Term.Name("_" + paramName.value)
+              val pbvarName = Pat.Var(bvarName)
+              val pvarName = Pat.Var(varName)
+              vars :+= q"private[this] val $pbvarName: _root_.scala.Boolean = $paramVarName.isEmpty.value"
+              vars :+= q"private[this] val $pvarName: $t = $paramVarName.getOrElse(null.asInstanceOf[$t])"
+              vars :+= q"def $paramName: $tpe = if ($bvarName) MNone() else MSome($varName)"
+              vars :+= q"def $getterName: $tpe = $paramName"
+            case Some(t"Either[$_, $_]") =>
+              val tpe = tpeopt.get
+              val Type.Apply(_, List(l, r)) = tpe
+              val bvarName = Term.Name("_b" + paramName.value)
+              val varName = Term.Name("_" + paramName.value)
+              val pvarName = Pat.Var(varName)
+              val pbvarName = Pat.Var(bvarName)
+              vars :+= q"private[this] val $pbvarName: _root_.scala.Boolean = $paramVarName.isRight.value"
+              vars :+= q"private[this] val $pvarName: _root_.scala.Any = if ($bvarName) $paramVarName.right else $paramVarName.left"
+              vars :+= q"def $paramName: $tpe = if ($bvarName) Either.Right($varName.asInstanceOf[$r]) else Either.Left($varName.asInstanceOf[$l])"
+              vars :+= q"def $getterName: $tpe = $paramName"
+            case Some(t"MEither[$_, $_]") =>
+              val tpe = tpeopt.get
+              val Type.Apply(_, List(l, r)) = tpe
+              val bvarName = Term.Name("_b" + paramName.value)
+              val varName = Term.Name("_" + paramName.value)
+              val pvarName = Pat.Var(varName)
+              val pbvarName = Pat.Var(bvarName)
+              vars :+= q"private[this] val $pbvarName: _root_.scala.Boolean = $paramVarName.isRight.value"
+              vars :+= q"private[this] val $pvarName: _root_.scala.Any = if ($bvarName) $paramVarName.right else $paramVarName.left"
+              vars :+= q"def $paramName: $tpe = if ($bvarName) MEither.Right($varName.asInstanceOf[$r]) else MEither.Left($varName.asInstanceOf[$l])"
+              vars :+= q"def $getterName: $tpe = $paramName"
+            case _ =>
+              val varName = Term.Name("_" + paramName.value)
+              val pvarName = Pat.Var(varName)
+              vars :+= q"private[this] val $pvarName = $paramVarName"
+              vars :+= q"def $paramName = $varName"
+              vars :+= q"def $getterName = $varName"
+          }
           applyParams :+= param"$paramName: $tpeopt = this.$paramName"
           oApplyParams :+= param"$paramName: $tpeopt"
           applyArgs :+= paramName
