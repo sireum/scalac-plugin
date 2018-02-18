@@ -61,7 +61,8 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
       } else List()
     val hash = if (hasHash) List(q"override def hashCode: $scalaInt = { hash.hashCode }") else List()
     val toString =
-      if (hasString) List(q"override def toString: $javaString = { string.value }")
+      if (hasString) List(q"final protected override val $$hasString = true",
+        q"override def toString: $javaString = { string.value }")
       else List()
     mat.adtTraits.add(name)
     mat.classMembers.getOrElseUpdate(name, MSeq()) ++= (hash.map(_.syntax) ++ equals.map(_.syntax) ++ toString.map(_.syntax))
@@ -212,7 +213,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
           if (hasHash) q"override lazy val hashCode: $scalaInt = hash.hashCode"
           else if (hasEqual) q"override lazy val hashCode: $scalaInt = 0"
           else {
-            q"override def hashCode: $scalaInt = $scalaSeqQ(this.getClass, ..${unapplyArgs.toList}).hashCode"
+            q"override def hashCode: $scalaInt = { if ($$hasEquals) super.hashCode else $scalaSeqQ(this.getClass, ..${unapplyArgs.toList}).hashCode }"
           }
         val equals =
           if (hasEqual) {
@@ -239,13 +240,15 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
               else appends.head +: appends.tail.flatMap(a => Vector(q"""sb.append(", ")""", a))
             Vector(
               q"""override def toString: $javaString = {
-                            val sb = new _root_.java.lang.StringBuilder
-                            sb.append(${Lit.String(tname.value)})
-                            sb.append('(')
-                            ..${appends.toList}
-                            sb.append(')')
-                            sb.toString
-                          }""",
+                    if ($$hasString) super.toString else {
+                      val sb = new _root_.java.lang.StringBuilder
+                      sb.append(${Lit.String(tname.value)})
+                      sb.append('(')
+                      ..${appends.toList}
+                      sb.append(')')
+                      sb.toString
+                    }
+                  }""",
               q"override def string: $sireumString = { toString }")
           }
         }
@@ -295,7 +298,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
         val hashCode =
           if (hasHash) q"override val hashCode: $scalaInt = { hash.hashCode }"
           else if (hasEqual) q"override val hashCode: $scalaInt = { 0 }"
-          else q"override val hashCode: $scalaInt = { this.getClass.hashCode }"
+          else q"override val hashCode: $scalaInt = { if ($$hasEquals) super.hashCode else this.getClass.hashCode }"
         val equals =
           if (hasEqual) {
             val eCases =
@@ -313,7 +316,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
         val toString = {
           if (hasString) Vector(q"override def toString: $javaString = { string.value }")
           else Vector(
-            q"""override def toString: $javaString = { ${Lit.String(tname.value + "()")} }""",
+            q"""override def toString: $javaString = { if ($$hasString) super.toString else ${Lit.String(tname.value + "()")} }""",
             q"override def string: $sireumString = { toString }")
         }
         val content = q"override def $$content: $scalaSeq[($javaString, $scalaAny)] = $scalaSeqQ((${Lit.String("type")}, $scalaListQ[$javaString](..${(mat.packageName :+ tname.value).map(x => Lit.String(x)).toList})))"
