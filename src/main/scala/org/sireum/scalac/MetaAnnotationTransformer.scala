@@ -101,7 +101,7 @@ object MetaAnnotationTransformer {
         error(s"Method hash is defined, but isEqual is not.")
       }
       else {
-        ("Method isEqual is defined, but hash is not.")
+        error("Method isEqual is defined, but hash is not.")
       }
     }
     (hasHash, hasEqual, hasString)
