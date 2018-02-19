@@ -240,7 +240,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
               else appends.head +: appends.tail.flatMap(a => Vector(q"""sb.append(", ")""", a))
             Vector(
               q"""override def toString: $javaString = {
-                    if ($$hasString) super.toString else {
+                    if ($$hasString) super.string.value else {
                       val sb = new _root_.java.lang.StringBuilder
                       sb.append(${Lit.String(tname.value)})
                       sb.append('(')
@@ -249,7 +249,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
                       sb.toString
                     }
                   }""",
-              q"override def string: $sireumString = { toString }")
+              q"override def string: $sireumString = { if ($$hasString) super.string else toString }")
           }
         }
         val content = {
@@ -316,8 +316,8 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
         val toString = {
           if (hasString) Vector(q"override def toString: $javaString = { string.value }")
           else Vector(
-            q"""override def toString: $javaString = { if ($$hasString) super.toString else ${Lit.String(tname.value + "()")} }""",
-            q"override def string: $sireumString = { toString }")
+            q"""override def toString: $javaString = { if ($$hasString) super.string.value else ${Lit.String(tname.value + "()")} }""",
+            q"override def string: $sireumString = { if ($$hasString) super.string else toString }")
         }
         val content = q"override def $$content: $scalaSeq[($javaString, $scalaAny)] = $scalaSeqQ((${Lit.String("type")}, $scalaListQ[$javaString](..${(mat.packageName :+ tname.value).map(x => Lit.String(x)).toList})))"
         mat.classMembers.getOrElseUpdate(name, MSeq()) ++= toString.map(_.syntax) :+ hashCode.syntax :+ equals.syntax :+ content.syntax :+ clone.syntax
