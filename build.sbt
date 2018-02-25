@@ -23,13 +23,15 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
   assemblyShadeRules in assembly := Seq(
     ShadeRule.rename("com.**" -> "sh4d3.com.@1").inAll,
     ShadeRule.rename("fastparse.**" -> "sh4d3.fastparse.@1").inAll,
-    ShadeRule.rename("google.**" -> "sh4d3.google.@1").inAll,
     ShadeRule.rename("org.langmeta.**" -> "sh4d3.org.langmeta.@1").inAll,
     ShadeRule.rename("org.scalameta.**" -> "sh4d3.org.scalameta.@1").inAll,
     ShadeRule.rename("scala.meta.**" -> "sh4d3.scala.meta.@1").inAll,
-    ShadeRule.rename("scalapb.**" -> "sh4d3.scalapb.@1").inAll,
     ShadeRule.rename("sourcecode.**" -> "sh4d3.sourcecode.@1").inAll
   ),
+  assemblyExcludedJars in assembly := {
+    val cp = (fullClasspath in assembly).value
+    cp filter {x => x.data.getName.contains("scalapb") || x.data.getName.contains("protobuf")}
+  },
   libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-compiler" % scalaVer,
     "org.scalameta" %% "scalameta" % metaVersion
