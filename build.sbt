@@ -59,12 +59,12 @@ lazy val `scalac-plugin` = project.settings(
       <licenses>
         <license>
           <name>Simplified BSD License</name>
-          <url>https://github.com/sireum/v3-scalac-plugin/blob/master/license.md</url>
+          <url>https://github.com/sireum/scalac-plugin/blob/master/license.md</url>
         </license>
       </licenses>
       <scm>
         <url>https://github.com/sireum/v3-scalac-plugin.git</url>
-        <connection>scm:git:https://github.com/sireum/v3-scalac-plugin.git</connection>
+        <connection>scm:git:https://github.com/sireum/scalac-plugin.git</connection>
       </scm>
       <developers>
         <developer>

@@ -11,8 +11,8 @@ build:
     options: "-e HOME=/root"
   ci:
     - sbt "project scalac-plugin" publishLocal
-    - git clone https://github.com/sireum/v3-scalac-plugin-test.git sireum-v3-scalac-plugin-test
-    - cd sireum-v3-scalac-plugin-test
+    - git clone https://github.com/sireum/scalac-plugin-test.git sireum-scalac-plugin-test
+    - cd sireum-scalac-plugin-test
     - sbt test
   post_ci:
   on_success:
