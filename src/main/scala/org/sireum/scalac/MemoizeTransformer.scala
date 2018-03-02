@@ -88,8 +88,11 @@ class MemoizeTransformer(mat: MetaAnnotationTransformer) {
           }
         }
         val (argType, arg) =
-          if (paramTypes.length == 1) (paramTypes.head, params.head)
-          else (t"(..${paramTypes.toList})", q"(..${params.toList})")
+          paramTypes.length match {
+            case 0 => (t"Unit", q"{}")
+            case 1 => (paramTypes.head, params.head)
+            case _ => (t"(..${paramTypes.toList})", q"(..${params.toList})")
+          }
         var inits = List[Stat]()
         var stats = List[Stat]()
         var hiddenVars = List[Stat]()
