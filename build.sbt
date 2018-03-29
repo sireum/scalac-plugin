@@ -2,7 +2,7 @@ val scalaVer = "2.12.4"
 
 val pluginVersion = "3.2.10-SNAPSHOT"
 
-val metaVersion = "3.4.0"
+val metaVersion = "3.6.0"
 
 addCommandAlias("publish-local", "; project scalac-plugin; publishLocal")
 addCommandAlias("publish-signed", "; project scalac-plugin; publishSigned")
@@ -30,7 +30,12 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
   ),
   assemblyExcludedJars in assembly := {
     val cp = (fullClasspath in assembly).value
-    cp filter {x => x.data.getName.contains("scalapb") || x.data.getName.contains("protobuf")}
+    cp filter {x =>
+      x.data.getName.contains("scalapb") ||
+        x.data.getName.contains("protobuf") ||
+        x.data.getName.contains("fansi") ||
+        x.data.getName.contains("lenses") ||
+        x.data.getName.contains("pprint")}
   },
   libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-compiler" % scalaVer,
