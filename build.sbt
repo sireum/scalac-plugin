@@ -1,8 +1,8 @@
-val scalaVer = "2.12.4"
+val scalaVer = "2.12.6"
 
 val pluginVersion = "3.3.1-SNAPSHOT"
 
-val metaVersion = "3.6.0"
+val metaVersion = "3.7.4"
 
 addCommandAlias("publish-local", "; project scalac-plugin; publishLocal")
 addCommandAlias("publish-signed", "; project scalac-plugin; publishSigned")
