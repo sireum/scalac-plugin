@@ -224,8 +224,10 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
                 case 1 => q"def unapply(o: $tpe): $scalaOption[${unapplyTypes.head}] = { $scalaSomeQ(o.${unapplyArgs.head}) }"
                 case n if n <= 22 => q"def unapply(o: $tpe): $scalaOption[(..${unapplyTypes.toList})] = { $scalaSomeQ((..${unapplyArgs.map(arg => q"o.$arg").toList})) }"
                 case _ =>
-                  val unapplyTypess = unapplyTypes.grouped(22).map(types => t"(..${types.toList})").toList
-                  val unapplyArgss = unapplyArgs.grouped(22).map(args => q"(..${args.map(a => q"o.$a").toList})").toList
+                  val unapplyTypess = unapplyTypes.grouped(22).map(types => if (types.size == 1) types.head else t"(..${types.toList})").toList
+                  val unapplyArgss = unapplyArgs.grouped(22).map(args =>
+                    if (args.size == 1) q"o.${args.head}"
+                    else q"(..${args.map(a => q"o.$a").toList})").toList
                   q"def unapply(o: $tpe): $scalaOption[(..$unapplyTypess)] = { $scalaSomeQ((..$unapplyArgss)) }"
               })
           else
@@ -235,8 +237,10 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
                 case 1 => q"def unapply[..$tparams](o: $tpe): $scalaOption[${unapplyTypes.head}] = { $scalaSomeQ(o.${unapplyArgs.head}) }"
                 case n if n <= 22 => q"def unapply[..$tparams](o: $tpe): $scalaOption[(..${unapplyTypes.toList})] = { $scalaSomeQ((..${unapplyArgs.map(arg => q"o.$arg").toList})) }"
                 case _ =>
-                  val unapplyTypess = unapplyTypes.grouped(22).map(types => t"(..${types.toList})").toList
-                  val unapplyArgss = unapplyArgs.grouped(22).map(args => q"(..${args.map(a => q"o.$a").toList})").toList
+                  val unapplyTypess = unapplyTypes.grouped(22).map(types => if (types.size == 1) types.head else t"(..${types.toList})").toList
+                  val unapplyArgss = unapplyArgs.grouped(22).map(args =>
+                    if (args.size == 1) q"o.${args.head}"
+                    else q"(..${args.map(a => q"o.$a").toList})").toList
                   q"def unapply[..$tparams](o: $tpe): $scalaOption[(..$unapplyTypess)] = { $scalaSomeQ((..$unapplyArgss)) }"
               })
         mat.objectMembers.getOrElseUpdate(name, MSeq()) ++= Vector(apply.syntax, unapply.syntax)
