@@ -320,18 +320,15 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           var r = tree
           mat.objectMembers.get(enclosing) match {
             case Some(members) =>
-              val q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$stats }" = r
-              val newStats = companionStats(rewriteStats(mat.objectMemberReplace, stats)) ++ parseTerms(members)
-              r = q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
+              val newStats = companionStats(rewriteStats(mat.objectMemberReplace, r.impl.body)) ++ parseTerms(members)
+              r = r.copy(impl = r.impl.copy(body = newStats).copyPosT(r.impl)).copyPosT(r)
             case _ =>
-              val q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$stats }" = r
-              val newStats = companionStats(rewriteStats(mat.objectMemberReplace, stats))
-              if (stats ne newStats) {
-                r = q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
-              }
+              val newStats = companionStats(rewriteStats(mat.objectMemberReplace, r.impl.body))
+              if (r.impl.body ne newStats) r = r.copy(impl = r.impl.copy(body = newStats).copyPosT(r.impl)).copyPosT(r)
           }
           mat.objectSupers.get(enclosing) match {
-            case Some(supers) => r = r.copy(impl = r.impl.copy(parents = r.impl.parents ++ parseTypes(supers)).copyPosT(r.impl)).copyPosT(r)
+            case Some(supers) =>
+              r = r.copy(impl = r.impl.copy(parents = r.impl.parents ++ parseTypes(supers)).copyPosT(r.impl)).copyPosT(r)
             case _ =>
           }
           r
