@@ -1,15 +1,15 @@
 val scalaVer = "2.12.8"
 
-val pluginVersion = "3.3.7-SNAPSHOT"
+val pluginVersion = "3.3.7"
 
 val metaVersion = "4.1.0"
 
-addCommandAlias("publish-local", "; project scalacPlugin; publishLocal")
-addCommandAlias("publish-signed", "; project scalacPlugin; publishSigned")
-addCommandAlias("release", "; project scalacPlugin; sonatypeRelease")
+addCommandAlias("publish-local", "; project scalac-plugin; publishLocal")
+addCommandAlias("publish-signed", "; project scalac-plugin; publishSigned")
+addCommandAlias("release", "; project scalac-plugin; sonatypeRelease")
 
 
-lazy val scalacPluginAssembly = (project in file(".")).settings(Seq(
+lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
   organization := "org.sireum",
   name := "scalac-plugin-assembly",
   scalaVersion := scalaVer,
@@ -44,11 +44,11 @@ lazy val scalacPluginAssembly = (project in file(".")).settings(Seq(
   skip in publish := true
 )).settings(addArtifact(artifact in(Compile, assembly), assembly).settings: _*)
 
-lazy val scalacPlugin = project.settings(
+lazy val `scalac-plugin` = project.settings(
   organization := "org.sireum",
   name := "scalac-plugin",
   version := pluginVersion,
-  Compile / packageBin  := (assembly in(scalacPluginAssembly, Compile)).value,
+  Compile / packageBin  := (assembly in(`scalac-plugin-assembly`, Compile)).value,
   publishMavenStyle := true,
   publishTo := {
     val nexus = "https://oss.sonatype.org/"
@@ -79,3 +79,4 @@ lazy val scalacPlugin = project.settings(
         </developer>
       </developers>
 )
+
