@@ -229,8 +229,11 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
                                     var enclosing: Vector[String]) extends TypingTransformer(unit) {
 
     val untraitMask: global.FlagSet = ~global.Flag.TRAIT
-    val mat = new MetaAnnotationTransformer(new String(unit.source.content), Vector(),
-      (offset, msg) => global.reporter.error(unit.position(offset), msg))
+    val mat = new MetaAnnotationTransformer({
+      val name = unit.source.file.name
+      name.endsWith(".sc") || name.endsWith(".logika") || name.endsWith(".slang")
+    }, new String(unit.source.content), Vector(),
+      (offset, msg) => global.reporter.error(unit.position(offset), s"[Slang] $msg"))
     val rwTree: MMap[Tree, Tree] = {
       import scala.collection.JavaConverters._
       new java.util.IdentityHashMap[Tree, Tree].asScala
@@ -245,7 +248,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     {
       val errorOffset = mat.transform()
       if (errorOffset >= 0) {
-        global.reporter.error(unit.position(errorOffset), s"Error processing compilation unit ${unit.source.file.canonicalPath}.")
+        global.reporter.error(unit.position(errorOffset), s"[Slang] Error processing compilation unit ${unit.source.file.canonicalPath}.")
       }
     }
 
@@ -413,12 +416,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
   def newPhase(prev: Phase): StdPhase = new StdPhase(prev) {
     def apply(unit: CompilationUnit): Unit = {
-      var isSireum = unit.source.file.hasExtension("slang") || unit.source.file.hasExtension("logika") ||
-        (unit.source.file.hasExtension("sc") &&
-          (unit.body.children.headOption match {
-            case Some(x) if x == importSireum || x == importLogika => true
-            case _ => false
-          }))
+      var isSireum = unit.source.file.hasExtension("slang") || unit.source.file.hasExtension("logika")
       if (!isSireum) {
         val cs = unit.source.content
         val i = cs.indexOf('\n')

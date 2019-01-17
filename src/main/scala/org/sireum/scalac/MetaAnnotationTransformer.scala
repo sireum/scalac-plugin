@@ -26,7 +26,6 @@
 package org.sireum.scalac
 
 import scala.meta._
-import scala.meta.dialects.Scala212
 import scala.collection.mutable.{Map => MMap, ArrayBuffer => MSeq, Set => MSet}
 
 object MetaAnnotationTransformer {
@@ -153,7 +152,8 @@ object MetaAnnotationTransformer {
 
 import MetaAnnotationTransformer._
 
-class MetaAnnotationTransformer(input: String,
+class MetaAnnotationTransformer(isScript: Boolean,
+                                input: String,
                                 var packageName: Vector[String],
                                 errorAt: (Int, String) => Unit) {
 
@@ -175,6 +175,9 @@ class MetaAnnotationTransformer(input: String,
   val st = new SigTransformer(this)
 
   def transform(): Int = {
+    implicit val dialect: scala.meta.Dialect =
+      if (isScript) scala.meta.dialects.Scala212.copy(allowToplevelTerms = true)
+      else scala.meta.dialects.Scala212
     input.
       replaceAllLiterally("\r\n", "\n"). // HACK: https://github.com/scalameta/scalameta/issues/443
       parse[Source] match {
