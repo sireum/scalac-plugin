@@ -4,48 +4,12 @@ val pluginVersion = "3.3.7-SNAPSHOT"
 
 val metaVersion = "4.1.0"
 
-addCommandAlias("publish-local", "; project scalac-plugin; publishLocal")
-addCommandAlias("publish-signed", "; project scalac-plugin; publishSigned")
-addCommandAlias("release", "; project scalac-plugin; sonatypeRelease")
+addCommandAlias("publish-local", "; project scalacPlugin; publishLocal")
+addCommandAlias("publish-signed", "; project scalacPlugin; publishSigned")
+addCommandAlias("release", "; project scalacPlugin; sonatypeRelease")
 
 
-lazy val `scalac-plugin` = project.settings(
-  organization := "org.sireum",
-  name := "scalac-plugin",
-  version := pluginVersion,
-  Compile / packageBin  := (assembly in(`scalac-plugin-assembly`, Compile)).value,
-  publishMavenStyle := true,
-  publishTo := {
-    val nexus = "https://oss.sonatype.org/"
-    if (isSnapshot.value)
-      Some("snapshots" at nexus + "content/repositories/snapshots")
-    else
-      Some("releases" at nexus + "service/local/staging/deploy/maven2")
-  },
-  Test / publishArtifact := false,
-  pomIncludeRepository := { _ => false },
-  pomExtra :=
-    <url>https://github.com/sireum/v3-scalac-plugin/</url>
-      <licenses>
-        <license>
-          <name>Simplified BSD License</name>
-          <url>https://github.com/sireum/scalac-plugin/blob/master/license.md</url>
-        </license>
-      </licenses>
-      <scm>
-        <url>https://github.com/sireum/v3-scalac-plugin.git</url>
-        <connection>scm:git:https://github.com/sireum/scalac-plugin.git</connection>
-      </scm>
-      <developers>
-        <developer>
-          <id>robby-phd</id>
-          <name>Robby</name>
-          <url>http://cs.ksu.edu/~robby</url>
-        </developer>
-      </developers>
-)
-
-lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
+lazy val scalacPluginAssembly = (project in file(".")).settings(Seq(
   organization := "org.sireum",
   name := "scalac-plugin-assembly",
   scalaVersion := scalaVer,
@@ -79,3 +43,39 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
   ),
   skip in publish := true
 )).settings(addArtifact(artifact in(Compile, assembly), assembly).settings: _*)
+
+lazy val scalacPlugin = project.settings(
+  organization := "org.sireum",
+  name := "scalac-plugin",
+  version := pluginVersion,
+  Compile / packageBin  := (assembly in(scalacPluginAssembly, Compile)).value,
+  publishMavenStyle := true,
+  publishTo := {
+    val nexus = "https://oss.sonatype.org/"
+    if (isSnapshot.value)
+      Some("snapshots" at nexus + "content/repositories/snapshots")
+    else
+      Some("releases" at nexus + "service/local/staging/deploy/maven2")
+  },
+  Test / publishArtifact := false,
+  pomIncludeRepository := { _ => false },
+  pomExtra :=
+    <url>https://github.com/sireum/v3-scalac-plugin/</url>
+      <licenses>
+        <license>
+          <name>Simplified BSD License</name>
+          <url>https://github.com/sireum/scalac-plugin/blob/master/license.md</url>
+        </license>
+      </licenses>
+      <scm>
+        <url>https://github.com/sireum/v3-scalac-plugin.git</url>
+        <connection>scm:git:https://github.com/sireum/scalac-plugin.git</connection>
+      </scm>
+      <developers>
+        <developer>
+          <id>robby-phd</id>
+          <name>Robby</name>
+          <url>http://cs.ksu.edu/~robby</url>
+        </developer>
+      </developers>
+)
