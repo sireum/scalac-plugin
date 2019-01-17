@@ -1,6 +1,6 @@
 val scalaVer = "2.12.8"
 
-val pluginVersion = "3.3.6-SNAPSHOT"
+val pluginVersion = "3.3.6"
 
 val metaVersion = "4.1.0"
 
