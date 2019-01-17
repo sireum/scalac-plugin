@@ -130,24 +130,38 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
         val maxErrorMessage = Lit.String(s" is greater than $cname.Max (${max.value})")
 
         mat.classReplace(name) =
-          q"""final class $typeName(val value: $sireumZ) extends _root_.scala.AnyVal with _root_.org.sireum.Z.Range[$typeName] {
-                @inline def Name: $javaString = $termName.Name
-                @inline def Min: $typeName = $termName.Min
-                @inline def Max: $typeName = $termName.Max
-                @inline def Index: $typeName = $termName.Index
-                @inline def isZeroIndex: $scalaBoolean = $termName.isZeroIndex
-                @inline def isSigned: $scalaBoolean = $termName.isSigned
-                @inline def hasMin: $scalaBoolean = $termName.hasMin
-                @inline def hasMax: $scalaBoolean = $termName.hasMax
-                def make(v: $sireumZ): $typeName = $termName(v)
-                def boxer = $boxerTerm
-              }""".syntax
+          if (mat.isScript)
+            q"""class $typeName(val value: $sireumZ) extends _root_.org.sireum.Z.Range[$typeName] {
+                  @inline def Name: $javaString = $termName.Name
+                  @inline def Min: $typeName = $termName.Min
+                  @inline def Max: $typeName = $termName.Max
+                  @inline def Index: $typeName = $termName.Index
+                  @inline def isZeroIndex: $scalaBoolean = $termName.isZeroIndex
+                  @inline def isSigned: $scalaBoolean = $termName.isSigned
+                  @inline def hasMin: $scalaBoolean = $termName.hasMin
+                  @inline def hasMax: $scalaBoolean = $termName.hasMax
+                  def make(v: $sireumZ): $typeName = $termName(v)
+                  def boxer = $boxerTerm
+                }""".syntax
+          else
+            q"""final class $typeName(val value: $sireumZ) extends _root_.scala.AnyVal with _root_.org.sireum.Z.Range[$typeName] {
+                  @inline def Name: $javaString = $termName.Name
+                  @inline def Min: $typeName = $termName.Min
+                  @inline def Max: $typeName = $termName.Max
+                  @inline def Index: $typeName = $termName.Index
+                  @inline def isZeroIndex: $scalaBoolean = $termName.isZeroIndex
+                  @inline def isSigned: $scalaBoolean = $termName.isSigned
+                  @inline def hasMin: $scalaBoolean = $termName.hasMin
+                  @inline def hasMax: $scalaBoolean = $termName.hasMax
+                  def make(v: $sireumZ): $typeName = $termName(v)
+                  def boxer = $boxerTerm
+                }""".syntax
 
         val objectMembers = (Seq(
           q"val Name: $javaString = $nameStr",
           q"lazy val Min: $typeName = if (hasMin) new $ctorName($sireumZQ.MP($min)) else halt($minUnsupported)",
           q"lazy val Max: $typeName = if (hasMax) new $ctorName($sireumZQ.MP($max)) else halt($maxUnsupported)",
-          q"val Index: $typeName = $termName($sireumZQ.MP(${Lit.String(index.toString)}))",
+          q"val Index: $typeName = new $ctorName($sireumZQ.MP(${Lit.String(index.toString)}))",
           q"val isZeroIndex: $scalaBoolean = $isZeroIndex",
           q"val isSigned: $scalaBoolean = ${Lit.Boolean(signed)}",
           q"val isBitVector: $scalaBoolean = false",

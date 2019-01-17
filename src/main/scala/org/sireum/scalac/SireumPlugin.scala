@@ -287,26 +287,35 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           val newStats = companionStats(rewriteStats(mat.objectMemberReplace, stats))
           if (stats ne newStats) tree.asInstanceOf[PackageDef].copy(stats = newStats).copyPosT(tree) else tree
         case tree: ClassDef =>
-          enclosing :+= tree.name.decoded
+          val tree2: ClassDef = if (ignoreClass(tree)) {
+            val stats = tree.impl.body
+            val newStats = companionStats(rewriteStats(mat.objectMemberReplace, stats))
+            if (stats ne newStats) tree.copy(impl = tree.impl.copy(body = newStats).copyPosT(tree.impl)).copyPosT(tree)
+            else tree
+          } else {
+            enclosing :+= tree.name.decoded
+            tree
+          }
           mat.classReplace.get(enclosing) match {
             case Some(text) =>
               enclosing = oldEnclosing
-              return parseTerms(Vector(text)).head.copyPos(tree)
+              return parseTerms(Vector(text)).head.copyPos(tree2)
             case _ =>
           }
-          var r = tree
+          var r = tree2
           if (mat.adtTraits.contains(enclosing)) {
             r = r.copy(mods = r.mods | global.Flag.SEALED).copyPosT(r)
           }
           mat.classMembers.get(enclosing) match {
             case Some(members) =>
               r match {
-                case q"$mods class $tpname[..$tparams] $ctorMods(...$paramss) extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
+                case q"$_ class $tpname[..$tparams] $ctorMods(...$paramss) extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
                   val newStats = parseTerms(members) ++ rewriteStats(mat.classMemberReplace, stats)
-                  val newParamss = paramss.map(_.map {
-                    case p: ValDef => p.copy(mods = classParamMods, name = TermName(s"__${p.name.decoded}")).copyPosT(p.duplicate) // https://github.com/scala/bug/issues/8771
+                  val newParamss = paramss.asInstanceOf[Seq[Seq[Any]]].map(_.map {
+                    case p: ValDef => p.copy(mods = classParamMods, name = TermName(s"__${p.name.decoded}")).copyPosT(p.duplicate) // HACK: https://github.com/scala/bug/issues/8771
                   })
-                  r = q"${r.mods | global.Flag.FINAL} class $tpname[..$tparams] $ctorMods(...$newParamss) extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
+                  val mods = if (mat.isScript) r.mods else r.mods | global.Flag.FINAL // HACK: https://github.com/scala/bug/issues/4440
+                  r = q"$mods class $tpname[..$tparams] $ctorMods(...$newParamss) extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
                 case q"$mods trait $tpname[..$tparams] extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
                   val newStats = parseTerms(members) ++ rewriteStats(mat.classMemberReplace, stats)
                   r = q"$mods trait $tpname[..$tparams] extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
@@ -319,7 +328,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           }
           r
         case tree: ModuleDef =>
-          enclosing :+= tree.name.decoded
+          if (!ignoreObject(tree)) enclosing :+= tree.name.decoded
           var r = tree
           mat.objectMembers.get(enclosing) match {
             case Some(members) =>
@@ -353,7 +362,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       }
     }
 
-    def rewriteStats(rwMap: CMap[Vector[String], String], stats: List[Tree]): List[Tree] = {
+    def rewriteStats(rwMap: CMap[Vector[String], String], stats: Seq[Any]): Seq[Tree] = {
       def rewriteBody(body: Tree, t: Tree): Unit = {
         t match {
           case Ident(TermName("$body$")) =>
@@ -381,12 +390,12 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
               rewriteBody(body, r)
             }
             r
-          case _ => stat
+          case _ => stat.asInstanceOf[Tree]
         }
       }
     }
 
-    def companionStats(stats: List[Tree]): List[Tree] = {
+    def companionStats(stats: Seq[Tree]): List[Tree] = {
       var newStats = List[Tree]()
       var hasChanged = false
       for (stat <- stats) {
@@ -395,8 +404,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             val name = enclosing :+ stat.name.decoded
             if (mat.objectMembers.contains(name) &&
               !stats.exists({
-                case md: ModuleDef =>
-                  name == (enclosing :+ md.name.decoded)
+                case md: ModuleDef => name == enclosing :+ md.name.decoded
                 case _ => false
               })) {
               hasChanged = true
@@ -409,8 +417,11 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         }
         newStats ::= stat
       }
-      if (hasChanged) newStats.reverse else stats
+      if (hasChanged) newStats.reverse else stats.toList
     }
+
+    def ignoreClass(tree: ClassDef): Boolean = "$anon" == tree.name.decoded
+    def ignoreObject(tree: ModuleDef): Boolean = "$lang$cript" == tree.name.decoded
 
   }
 

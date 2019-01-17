@@ -269,18 +269,32 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
         }
 
         mat.classReplace(name) =
-          q"""final class $typeName(val value: $valueTypeName) extends _root_.scala.AnyVal with $bvType {
-                @inline def Name: $javaString = $termName.Name
-                @inline def BitWidth: $scalaInt = $termName.BitWidth
-                @inline def Min: $typeName = $termName.Min
-                @inline def Max: $typeName = $termName.Max
-                @inline def Index: $typeName = $termName.Index
-                @inline def isZeroIndex: $scalaBoolean = $termName.isZeroIndex
-                @inline def isSigned: $scalaBoolean = $termName.isSigned
-                @inline def isWrapped: $scalaBoolean = $termName.isWrapped
-                def make(v: $valueTypeName): $typeName = $termName(v)
-                def boxer = $termName.Boxer
-              }""".syntax
+          if (mat.isScript)
+            q"""class $typeName(val value: $valueTypeName) extends $bvType {
+                  @inline def Name: $javaString = $termName.Name
+                  @inline def BitWidth: $scalaInt = $termName.BitWidth
+                  @inline def Min: $typeName = $termName.Min
+                  @inline def Max: $typeName = $termName.Max
+                  @inline def Index: $typeName = $termName.Index
+                  @inline def isZeroIndex: $scalaBoolean = $termName.isZeroIndex
+                  @inline def isSigned: $scalaBoolean = $termName.isSigned
+                  @inline def isWrapped: $scalaBoolean = $termName.isWrapped
+                  def make(v: $valueTypeName): $typeName = $termName(v)
+                  def boxer = $termName.Boxer
+                }""".syntax
+          else
+            q"""final class $typeName(val value: $valueTypeName) extends _root_.scala.AnyVal with $bvType {
+                  @inline def Name: $javaString = $termName.Name
+                  @inline def BitWidth: $scalaInt = $termName.BitWidth
+                  @inline def Min: $typeName = $termName.Min
+                  @inline def Max: $typeName = $termName.Max
+                  @inline def Index: $typeName = $termName.Index
+                  @inline def isZeroIndex: $scalaBoolean = $termName.isZeroIndex
+                  @inline def isSigned: $scalaBoolean = $termName.isSigned
+                  @inline def isWrapped: $scalaBoolean = $termName.isWrapped
+                  def make(v: $valueTypeName): $typeName = $termName(v)
+                  def boxer = $termName.Boxer
+                }""".syntax
         val objectMembers = Seq(
           q"object Boxer extends $boxerType { def make(o: $valueTypeName): $typeName = new $ctorName(o) }",
           q"val Name: $javaString = $nameStr",

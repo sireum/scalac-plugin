@@ -152,7 +152,7 @@ object MetaAnnotationTransformer {
 
 import MetaAnnotationTransformer._
 
-class MetaAnnotationTransformer(isScript: Boolean,
+class MetaAnnotationTransformer(val isScript: Boolean,
                                 input: String,
                                 var packageName: Vector[String],
                                 errorAt: (Int, String) => Unit) {
