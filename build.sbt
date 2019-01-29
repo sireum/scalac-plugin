@@ -1,8 +1,8 @@
 val scalaVer = "2.12.8"
 
-val pluginVersion = "3.3.8-SNAPSHOT"
+val pluginVersion = "4.0.0-SNAPSHOT"
 
-val metaVersion = "4.1.0"
+val metaVersion = "4.1.1"
 
 addCommandAlias("publish-local", "; project scalac-plugin; publishLocal")
 addCommandAlias("publish-signed", "; project scalac-plugin; publishSigned")
@@ -68,7 +68,7 @@ lazy val `scalac-plugin` = project.settings(
         </license>
       </licenses>
       <scm>
-        <url>https://github.com/sireum/v3-scalac-plugin.git</url>
+        <url>https://github.com/sireum/scalac-plugin.git</url>
         <connection>scm:git:https://github.com/sireum/scalac-plugin.git</connection>
       </scm>
       <developers>
