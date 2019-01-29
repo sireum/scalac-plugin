@@ -142,6 +142,12 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
                   @inline def hasMax: $scalaBoolean = $termName.hasMax
                   def make(v: $sireumZ): $typeName = $termName(v)
                   def boxer = $boxerTerm
+                  override def equals(that: $scalaAny): $scalaBoolean =
+                    that match {
+                      case that: $typeName => value == that.value
+                      case _ => false
+                    }
+                  override def hashCode: $scalaInt = value.hashCode
                 }""".syntax
           else
             q"""final class $typeName(val value: $sireumZ) extends _root_.scala.AnyVal with _root_.org.sireum.Z.Range[$typeName] {

@@ -281,6 +281,12 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
                   @inline def isWrapped: $scalaBoolean = $termName.isWrapped
                   def make(v: $valueTypeName): $typeName = $termName(v)
                   def boxer = $termName.Boxer
+                  override def equals(that: $scalaAny): $scalaBoolean =
+                    that match {
+                      case that: $typeName => value == that.value
+                      case _ => false
+                    }
+                  override def hashCode: $scalaInt = value
                 }""".syntax
           else
             q"""final class $typeName(val value: $valueTypeName) extends _root_.scala.AnyVal with $bvType {
