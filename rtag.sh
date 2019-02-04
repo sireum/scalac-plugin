@@ -1,6 +1,5 @@
 #!/bin/bash -e
-HASH=$(git log -n 1 --pretty=format:%H)
-VER=4.${HASH:0:10}
+VER=$(git log -n 1 --date=format:%Y%m%d --pretty=format:4.%cd.%h)
 echo "Tagging ${VER}"
-git tag ${VER}
-git push origin ${VER}
+#git tag ${VER}
+#git push origin ${VER}
