@@ -421,7 +421,19 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     }
 
     def ignoreClass(tree: ClassDef): Boolean = "$anon" == tree.name.decoded
-    def ignoreObject(tree: ModuleDef): Boolean = "$lang$cript" == tree.name.decoded
+    def ignoreObject(tree: ModuleDef): Boolean = "Main" == tree.name.decoded && {
+      val stats = tree.impl.body
+      if (stats.size == 2) {
+        stats.head match {
+          case q"def ${init: TermName}() = $_" if init.decoded == "<init>" =>
+            stats(1) match {
+              case q"def main(args: Array[String]): scala.Unit = $_" => true
+              case _ => false
+            }
+          case _ => false
+        }
+      } else false
+    }
 
   }
 

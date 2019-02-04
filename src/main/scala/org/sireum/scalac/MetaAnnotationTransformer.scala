@@ -203,7 +203,6 @@ class MetaAnnotationTransformer(val isScript: Boolean,
             case "@contract" => // skip
             case "@datatype" => dt.transform(enclosing, parent)
             case "@enum" => et.transform(enclosing, parent)
-            case "@ext" => ext.transform(enclosing, parent)
             case "@helper" => // skip
             case "@hidden" => // skip
             case "@memoize" => mt.transform(enclosing, parent)
@@ -216,7 +215,9 @@ class MetaAnnotationTransformer(val isScript: Boolean,
               ann.init.tpe.syntax match {
                 case "range" if ann.init.argss.size == 1 => rt.transform(enclosing, parent, ann.init.argss.head)
                 case "bits" if ann.init.argss.size == 1 => bt.transform(enclosing, parent, ann.init.argss.head)
-                case _ => error(tree.pos, s"Unsupported annotation $annSyntax.")
+                case "ext" if ann.init.argss.size == 1 => ext.transform (enclosing, parent, ann.init.argss.head)
+                case "ext" if ann.init.argss.isEmpty => ext.transform (enclosing, parent, List())
+                case _ => error(tree.pos, s"Invalid annotation $annSyntax.")
               }
           }
           case _ =>

@@ -12,7 +12,7 @@ object ExtTransformer {
 import ExtTransformer._
 
 class ExtTransformer(mat: MetaAnnotationTransformer) {
-  def transform(name: Vector[String], tree: Tree): Unit = {
+  def transform(name: Vector[String], tree: Tree, args: List[Term]): Unit = {
     tree match {
       case tree: Defn.Object =>
         if (tree.templ.early.nonEmpty ||
@@ -21,7 +21,17 @@ class ExtTransformer(mat: MetaAnnotationTransformer) {
           mat.error(tree.pos, s"Invalid @ext object form; it has to be of the form '@ext object ${tree.name.value} { ... }'.")
           return
         }
-        val extName = Term.Name(tree.name.value + extSuffix)
+        var extObjName = tree.name.value + extSuffix
+        if (args.size == 1) {
+          args.head match {
+            case q"name = ${exp: Lit.String}" => extObjName = exp.value
+            case q"${exp: Lit.String}" => extObjName = exp.value
+            case _ =>
+              mat.error(args.head.pos, s"""Invalid @ext name argument; it has to be of the form 'name = "..."' or '"..."'.""")
+              return
+          }
+        }
+        val extName = Term.Name(extObjName)
         for (stat <- tree.templ.stats) stat match {
           case q"..$mods val ${x: Pat.Var}: $tpeopt = $$" =>
             if (mods.nonEmpty || tpeopt.isEmpty) {
