@@ -35,8 +35,8 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
 
     tree match {
       case tree: Defn.Class =>
-        var width = 0
-        var signed = false
+        var widthOpt: Option[Int] = None
+        var signedOpt: Option[Boolean] = None
         var indexB = false
         var minOpt: Option[BigInt] = None
         var maxOpt: Option[BigInt] = None
@@ -48,7 +48,7 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
           arg match {
             case q"signed = ${exp: Term}" =>
               extractBoolean(exp) match {
-                case Some(b) => signed = b
+                case Some(b) => signedOpt = Some(b)
                 case _ =>
                   mat.error(arg.pos, s"Invalid Slang @bits signed argument: ${arg.syntax}")
                   return
@@ -56,7 +56,7 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
             case q"width = ${exp: Term}" =>
               val nOpt = extractInt(exp)
               nOpt match {
-                case Some(`bi8`) | Some(`bi16`) | Some(`bi32`) | Some(`bi64`) => width = nOpt.get.toInt
+                case Some(`bi8`) | Some(`bi16`) | Some(`bi32`) | Some(`bi64`) => widthOpt = Some(nOpt.get.toInt)
                 case _ =>
                   mat.error(arg.pos, s"Invalid Slang @bits width argument: ${arg.syntax} (only 8, 16, 32, or 64 are currently supported)")
                   return
@@ -72,6 +72,41 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
               }
             case _ =>
               mat.error(arg.pos, s"Invalid Slang @bits argument: ${arg.syntax}")
+              return
+          }
+        }
+        val signed = signedOpt match {
+          case Some(x) => x
+          case _ => minOpt match {
+            case Some(min) => min < 0
+            case _ => true
+          }
+        }
+        val width = widthOpt match {
+          case Some(w) => w
+          case _ => (minOpt, maxOpt) match {
+            case (Some(min), Some(max)) =>
+              if (signed) {
+                if (Byte.MinValue.toInt <= min && max <= Byte.MaxValue.toInt) 8
+                else if (Short.MinValue.toInt <= min && max <= Short.MaxValue.toInt) 16
+                else if (Int.MinValue <= min && max <= Int.MaxValue) 32
+                else if (Long.MinValue <= min && max <= Long.MaxValue) 64
+                else {
+                  mat.error(tree.pos, s"Invalid Slang @bits: min/max do not fit into signed integer 8, 16, 32, or 64 bits.")
+                  return
+                }
+              } else {
+                if (0 <= min && max <= Byte.MaxValue.toInt - Byte.MinValue.toInt) 8
+                else if (0 <= min && max <= Short.MaxValue.toInt - Short.MinValue.toInt) 16
+                else if (0 <= min && max <= Int.MaxValue.toLong - Int.MinValue.toLong) 32
+                else if (0 <= min && max <= BigInt(Long.MaxValue) - BigInt(Long.MinValue)) 64
+                else {
+                  mat.error(tree.pos, s"Invalid Slang @bits: min/max do not fit into unsigned integer 8, 16, 32, or 64 bits.")
+                  return
+                }
+              }
+            case _ =>
+              mat.error(tree.pos, s"Slang @bits ${tree.name.value} requires either width or min/max to be specified.")
               return
           }
         }
@@ -266,6 +301,7 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
               def unapply(n: $typeName): $scalaOption[$scalaBigInt] = $scalaSomeQ(n.toBigInt)
             }"""
           )
+          case _ => return
         }
 
         mat.classReplace(name) =
