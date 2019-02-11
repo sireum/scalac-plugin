@@ -328,8 +328,18 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           }
           r
         case tree: ModuleDef =>
-          if (!ignoreObject(tree)) enclosing :+= tree.name.decoded
-          var r = tree
+          var r = if (scriptObject(tree)) {
+            val stats = tree.impl.body
+            val main = stats(1).asInstanceOf[DefDef]
+            val block = main.rhs.asInstanceOf[Block]
+            val newMain = main.copy(rhs = fixPos(block.copy(stats =
+                q"_root_.org.sireum.App.args = _root_.org.sireum.ISZ(args.map(_root_.org.sireum.String(_)): _*)" ::
+                block.stats).copyPosT(block))).copyPosT(main.rhs)
+            tree.copy(impl = tree.impl.copy(body = stats.head :: newMain :: stats.tail.tail).copyPosT(tree.impl)).copyPosT(tree)
+          } else {
+            enclosing :+= tree.name.decoded
+            tree
+          }
           mat.objectMembers.get(enclosing) match {
             case Some(members) =>
               val newStats = companionStats(rewriteStats(mat.objectMemberReplace, r.impl.body)) ++ parseTerms(members)
@@ -421,7 +431,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     }
 
     def ignoreClass(tree: ClassDef): Boolean = "$anon" == tree.name.decoded
-    def ignoreObject(tree: ModuleDef): Boolean = "Main" == tree.name.decoded && {
+    def scriptObject(tree: ModuleDef): Boolean = "Main" == tree.name.decoded && {
       val stats = tree.impl.body
       if (stats.size == 2) {
         stats.head match {
