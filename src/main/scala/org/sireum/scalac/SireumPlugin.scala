@@ -231,7 +231,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     val untraitMask: global.FlagSet = ~global.Flag.TRAIT
     val mat = new MetaAnnotationTransformer({
       val name = unit.source.file.name
-      name.endsWith(".sc") || name.endsWith(".logika") || name.endsWith(".slang")
+      !name.endsWith(".scala")
     }, new String(unit.source.content), Vector(),
       (offset, msg) => global.reporter.error(unit.position(offset), s"[Slang] $msg"))
     val rwTree: MMap[Tree, Tree] = {
@@ -332,9 +332,12 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             val stats = tree.impl.body
             val main = stats(1).asInstanceOf[DefDef]
             val block = main.rhs.asInstanceOf[Block]
-            val newMain = main.copy(rhs = fixPos(block.copy(stats =
-                q"_root_.org.sireum.App.args = _root_.org.sireum.ISZ(args.map(_root_.org.sireum.String(_)): _*)" ::
-                block.stats).copyPosT(block))).copyPosT(main.rhs)
+            val cls = block.stats.head.asInstanceOf[ClassDef]
+            val argsStmt = fixPos(q"_root_.org.sireum.App.args = _root_.org.sireum.ISZ(args.map(s => _root_.org.sireum.String(s.trim)): _*)".copyPosT(cls.impl))
+            val newImpl = cls.impl.copy(body = cls.impl.body.head :: argsStmt :: cls.impl.body.tail).copyPosT(cls.impl)
+            val newCls = cls.copy(impl = newImpl).copyPosT(cls)
+            val newMain = main.copy(rhs = block.copy(stats =
+              newCls :: block.stats.tail).copyPosT(block)).copyPosT(main.rhs)
             tree.copy(impl = tree.impl.copy(body = stats.head :: newMain :: stats.tail.tail).copyPosT(tree.impl)).copyPosT(tree)
           } else {
             enclosing :+= tree.name.decoded
@@ -452,13 +455,16 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       var isSireum = unit.source.file.hasExtension("slang") || unit.source.file.hasExtension("logika")
       if (!isSireum) {
         val cs = unit.source.content
-        val i = cs.indexOf('\n')
         val sb = new java.lang.StringBuilder
-        if (i >= 0) {
-          for (j <- 0 until i) cs(j) match {
-            case '\t' | '\r' | ' ' =>
-            case c => sb.append(c)
+        var i = 0
+        while (i < cs.length && cs(i).isWhitespace) i += 1
+        var found = false
+        while (i < cs.length && !found) {
+          cs(i) match {
+            case '\n' => found = true
+            case c => if (!c.isWhitespace) sb.append(c)
           }
+          i += 1
         }
         val firstLine = sb.toString
         isSireum = firstLine.contains("#Sireum")
