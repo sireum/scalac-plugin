@@ -153,6 +153,8 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           }
         case tree@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) if !inPat =>
           tree.copy(fun = sc.copy(name = TermName("lUnit")).copyPos(sc)).copyPos(tree)
+        case tree@Apply(Select(Apply(Ident(TermName("StringContext")), _), TermName("s")), _) if !inPat =>
+          q"$sireumString($tree)".copyPosT(tree)
         case tree@Apply(Select(Ident(TermName("scala")), TermName("Symbol")), _) => tree
         case tree@Apply(Ident(TermName("StringContext")), _) => tree
         case q"$_ trait $_[..$_] extends { ..$_ } with ..$_ { $_ => ..$_ }" =>
