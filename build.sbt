@@ -2,7 +2,7 @@ val scalaVer = "2.12.8"
 
 val pluginVersion = "4-SNAPSHOT"
 
-val metaVersion = "4.1.6"
+val metaVersion = "4.1.9"
 
 addCommandAlias("publish-local", "; project scalac-plugin; publishLocal")
 addCommandAlias("publish-signed", "; project scalac-plugin; publishSigned")
@@ -26,6 +26,7 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
     ShadeRule.rename("org.langmeta.**" -> "sh4d3.org.langmeta.@1").inAll,
     ShadeRule.rename("org.scalameta.**" -> "sh4d3.org.scalameta.@1").inAll,
     ShadeRule.rename("scala.meta.**" -> "sh4d3.scala.meta.@1").inAll,
+    ShadeRule.rename("fastparse.**" -> "sh4d3.fastparse.@1").inAll,
     ShadeRule.rename("sourcecode.**" -> "sh4d3.sourcecode.@1").inAll
   ),
   assemblyExcludedJars in assembly := {
@@ -35,7 +36,8 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
         x.data.getName.contains("protobuf") ||
         x.data.getName.contains("fansi") ||
         x.data.getName.contains("lenses") ||
-        x.data.getName.contains("pprint")}
+        x.data.getName.contains("pprint") ||
+        x.data.getName.contains("scalap")}
   },
   libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-compiler" % scalaVer,
