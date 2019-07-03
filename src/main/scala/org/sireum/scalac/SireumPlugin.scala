@@ -32,6 +32,7 @@ import scala.tools.nsc.plugins.PluginComponent
 import scala.tools.nsc.transform.TypingTransformers
 import scala.collection.{Map => CMap}
 import scala.collection.mutable.{Map => MMap}
+import scala.reflect.internal.ModifierFlags
 
 class SireumPlugin(override val global: Global) extends Plugin {
   override val name = "sireum"
@@ -359,6 +360,11 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             case _ =>
           }
           r
+        case tree: ValDef =>
+          if (tree.mods.hasAnnotationNamed(TypeName("spec")))
+            if (tree.mods.hasFlag(ModifierFlags.MUTABLE)) tree.copy(rhs = EmptyTree).copyPosT(tree)
+            else tree.copy(mods = tree.mods | ModifierFlags.LAZY)
+          else tree
         case _ => tree
       }
       rwTree.get(tree2) match {
