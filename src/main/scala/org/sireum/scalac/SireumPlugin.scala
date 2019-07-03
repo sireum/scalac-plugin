@@ -359,10 +359,6 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             case _ =>
           }
           r
-        case tree: DefDef =>
-          if (tree.mods.hasAnnotationNamed(TypeName("spec"))) EmptyTree else tree
-        case tree: ValDef =>
-          if (tree.mods.hasAnnotationNamed(TypeName("spec"))) EmptyTree else tree
         case _ => tree
       }
       rwTree.get(tree2) match {
