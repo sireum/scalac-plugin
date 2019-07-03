@@ -200,7 +200,6 @@ class MetaAnnotationTransformer(val isScript: Boolean,
       case mod"@${ann: Mod.Annot}" =>
         ann.parent match {
           case Some(parent) => ann.syntax match {
-            case "@contract" => // skip
             case "@datatype" => dt.transform(enclosing, parent)
             case "@enum" => et.transform(enclosing, parent)
             case "@helper" => // skip
@@ -208,6 +207,7 @@ class MetaAnnotationTransformer(val isScript: Boolean,
             case "@memoize" => mt.transform(enclosing, parent)
             case "@msig" => st.transform(isImmutable = false, enclosing, parent)
             case "@pure" => // skip
+            case "@strictpure" => // skip
             case "@record" => rdt.transform(enclosing, parent)
             case "@sig" => st.transform(isImmutable = true, enclosing, parent)
             case "@spec" => // skip
