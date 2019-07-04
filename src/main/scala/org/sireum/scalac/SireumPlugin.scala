@@ -149,6 +149,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             case rhs@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) =>
               if (inTrait) tree.copy(rhs = q"$$").copyPos(tree)
               else tree.copy(rhs = rhs.copy(fun = sc.copy(name = TermName("lDef")).copyPos(sc)).copyPos(rhs)).copyPos(tree)
+            case q"Contract.Only(..$_)" => tree.copy(rhs = EmptyTree).copyPosT(tree)
             case _ =>
               sup(tree)
           }
@@ -363,7 +364,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         case tree: ValDef =>
           if (tree.mods.hasAnnotationNamed(TypeName("spec")))
             if (tree.mods.hasFlag(ModifierFlags.MUTABLE)) tree.copy(rhs = EmptyTree).copyPosT(tree)
-            else tree.copy(mods = tree.mods | ModifierFlags.LAZY)
+            else tree.copy(mods = tree.mods | ModifierFlags.LAZY).copyPosT(tree)
           else tree
         case _ => tree
       }
