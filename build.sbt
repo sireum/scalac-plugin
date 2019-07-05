@@ -49,6 +49,7 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
 lazy val `scalac-plugin` = project.settings(
   organization := "org.sireum",
   name := "scalac-plugin",
+  scalaVersion := scalaVer,
   version := pluginVersion,
   Compile / packageBin  := (assembly in(`scalac-plugin-assembly`, Compile)).value,
   publishMavenStyle := true,

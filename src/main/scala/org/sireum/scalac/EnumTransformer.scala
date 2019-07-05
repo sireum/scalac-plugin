@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2017, Robby, Kansas State University
+ Copyright (c) 2019, Robby, Kansas State University
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
@@ -71,9 +71,10 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
         for (stat <- tree.templ.stats) {
           val sym = stat match {
             case Lit.Symbol(s) => s.name
+            case Lit.String(s) => s
             case Term.Apply(Term.Select(Term.Name("scala"), Term.Name("Symbol")), Seq(Lit.String(s))) => s
             case _ =>
-              mat.error(stat.pos, s"Slang @enum can only have symbols for enum element names: ${stat.syntax}")
+              mat.error(stat.pos, s"Slang @enum can only have symbols/strings for enum element names: ${stat.syntax}")
               return
           }
           val tname = Term.Name(sym)

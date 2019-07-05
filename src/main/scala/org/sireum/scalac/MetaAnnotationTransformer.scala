@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2017, Robby, Kansas State University
+ Copyright (c) 2019, Robby, Kansas State University
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
@@ -146,7 +146,7 @@ object MetaAnnotationTransformer {
 
   def scName(name: String): Type.Name = Type.Name(name + "$Slang")
 
-  def scPrefix(name: String): Term.Name = Term.Name(name.head.toLower + name.tail)
+  def scPrefix(name: String): Term.Name = Term.Name(s"${name.head.toLower}${name.tail}")
 
 }
 

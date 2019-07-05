@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2017, Robby, Kansas State University
+ Copyright (c) 2019, Robby, Kansas State University
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
@@ -197,8 +197,8 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
                 $termName(if (n < Min.value) Min.value + n else n)
               }""",
           q"""private def check(v: $sireumZ): $sireumZ = {
-                if (hasMin) assert(Min.value <= v, v + $minErrorMessage)
-                if (hasMax) assert(v <= Max.value, v + $maxErrorMessage)
+                if (hasMin) assert(Min.value <= v, v.toString + $minErrorMessage)
+                if (hasMax) assert(v <= Max.value, v.toString + $maxErrorMessage)
                 v
               }""",
           q"def apply(n: $scalaInt): $typeName = Int(n)",

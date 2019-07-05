@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2017, Robby, Kansas State University
+ Copyright (c) 2019, Robby, Kansas State University
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
@@ -33,11 +33,33 @@ import scala.tools.nsc.transform.TypingTransformers
 import scala.collection.{Map => CMap}
 import scala.collection.mutable.{Map => MMap}
 import scala.reflect.internal.ModifierFlags
+import scala.collection.Seq
 
 class SireumPlugin(override val global: Global) extends Plugin {
   override val name = "sireum"
   override val description = "Compiler plugin for the Sireum Scala subset."
   override val components: List[PluginComponent] = List(new SireumComponent(global))
+
+  /*
+  val originalReporter: scala.reflect.internal.Reporter = global.reporter
+
+  global.reporter = new scala.reflect.internal.Reporter {
+
+    val suppressedWarnings: Set[String] = Set(
+      "symbol literal is deprecated"
+    )
+
+    override protected def info0(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity, force: Boolean): Unit = {
+      if (!suppressedWarnings.exists(m => msg.contains(m))) {
+        severity match {
+          case INFO => originalReporter.echo(pos, msg)
+          case WARNING => originalReporter.warning(pos, msg)
+          case ERROR => originalReporter.error(pos, msg)
+        }
+      }
+    }
+  }
+  */
 }
 
 final class SireumComponent(val global: Global) extends PluginComponent with TypingTransformers {
@@ -239,6 +261,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     }, new String(unit.source.content), Vector(),
       (offset, msg) => global.reporter.error(unit.position(offset), s"[Slang] $msg"))
     val rwTree: MMap[Tree, Tree] = {
+      //import scala.jdk.CollectionConverters._
       import scala.collection.JavaConverters._
       new java.util.IdentityHashMap[Tree, Tree].asScala
     }

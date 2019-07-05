@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2017, Robby, Kansas State University
+ Copyright (c) 2019, Robby, Kansas State University
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
@@ -156,14 +156,14 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
             q"""def apply(n: $sireumZ): $typeName = n match {
               case n: _root_.org.sireum.Z.MP.Long =>
                 if (!isWrapped) {
-                  assert(Min.toMP <= n, n + $minErrorMessage)
-                  assert(n <= Max.toMP, n + $maxErrorMessage)
+                  assert(Min.toMP <= n, n.toString + $minErrorMessage)
+                  assert(n <= Max.toMP, n.toString + $maxErrorMessage)
                 }
                 new $ctorName(n.value.toByte)
               case n: _root_.org.sireum.Z.MP.BigInt =>
                 if (!isWrapped) {
-                  assert(Min.toMP <= n, n + $minErrorMessage)
-                  assert(n <= Max.toMP, n + $maxErrorMessage)
+                  assert(Min.toMP <= n, n.toString + $minErrorMessage)
+                  assert(n <= Max.toMP, n.toString + $maxErrorMessage)
                 }
                 new $ctorName(n.value.toByte)
               case _ => halt(s"Unsupported $$Name creation from $${n.Name}.")
@@ -192,14 +192,14 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
             q"""def apply(n: $sireumZ): $typeName = n match {
               case n: _root_.org.sireum.Z.MP.Long =>
                 if (!isWrapped) {
-                  assert(Min.toMP <= n, n + $minErrorMessage)
-                  assert(n <= Max.toMP, n + $maxErrorMessage)
+                  assert(Min.toMP <= n, n.toString + $minErrorMessage)
+                  assert(n <= Max.toMP, n.toString + $maxErrorMessage)
                 }
                 new $ctorName(n.value.toShort)
               case n: _root_.org.sireum.Z.MP.BigInt =>
                 if (!isWrapped) {
-                  assert(Min.toMP <= n, n + $minErrorMessage)
-                  assert(n <= Max.toMP, n + $maxErrorMessage)
+                  assert(Min.toMP <= n, n.toString + $minErrorMessage)
+                  assert(n <= Max.toMP, n.toString + $maxErrorMessage)
                 }
                 new $ctorName(n.value.toShort)
               case _ => halt(s"Unsupported $$Name creation from $${n.Name}.")
@@ -228,14 +228,14 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
             q"""def apply(n: $sireumZ): $typeName = n match {
               case n: _root_.org.sireum.Z.MP.Long =>
                 if (!isWrapped) {
-                  assert(Min.toMP <= n, n + $minErrorMessage)
-                  assert(n <= Max.toMP, n + $maxErrorMessage)
+                  assert(Min.toMP <= n, n.toString + $minErrorMessage)
+                  assert(n <= Max.toMP, n.toString + $maxErrorMessage)
                 }
                 new $ctorName(n.value.toInt)
               case n: _root_.org.sireum.Z.MP.BigInt =>
                 if (!isWrapped) {
-                  assert(Min.toMP <= n, n + $minErrorMessage)
-                  assert(n <= Max.toMP, n + $maxErrorMessage)
+                  assert(Min.toMP <= n, n.toString + $minErrorMessage)
+                  assert(n <= Max.toMP, n.toString + $maxErrorMessage)
                 }
                 new $ctorName(n.value.toInt)
               case _ => halt(s"Unsupported $$Name creation from $${n.Name}.")
@@ -268,14 +268,14 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
             q"""def apply(n: $sireumZ): $typeName = n match {
               case n: _root_.org.sireum.Z.MP.Long =>
                 if (!isWrapped) {
-                  assert(Min.toMP <= n, n + $minErrorMessage)
-                  assert(n <= Max.toMP, n + $maxErrorMessage)
+                  assert(Min.toMP <= n, n.toString + $minErrorMessage)
+                  assert(n <= Max.toMP, n.toString + $maxErrorMessage)
                 }
                 new $ctorName(n.value)
               case n: _root_.org.sireum.Z.MP.BigInt =>
                 if (!isWrapped) {
-                  assert(Min.toMP <= n, n + $minErrorMessage)
-                  assert(n <= Max.toMP, n + $maxErrorMessage)
+                  assert(Min.toMP <= n, n.toString + $minErrorMessage)
+                  assert(n <= Max.toMP, n.toString + $maxErrorMessage)
                 }
                 new $ctorName(n.value.toLong)
               case _ => halt(s"Unsupported $$Name creation from $${n.Name}.")

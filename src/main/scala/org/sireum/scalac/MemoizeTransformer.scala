@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2017, Robby, Kansas State University
+ Copyright (c) 2019, Robby, Kansas State University
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
@@ -129,7 +129,7 @@ class MemoizeTransformer(mat: MetaAnnotationTransformer) {
         val cacheVar = {
           val cacheInit =
             q"""{
-                  import scala.collection.JavaConverters._
+                  import org.sireum.$$internal.CollectionCompat.Converters._
                   (new java.util.concurrent.ConcurrentHashMap[$argType, $returnType]()).asScala
                 }"""
           q"val cache: scala.collection.mutable.Map[$argType, $returnType] = $cacheInit"
