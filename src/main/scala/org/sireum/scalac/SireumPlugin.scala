@@ -35,12 +35,37 @@ import scala.collection.mutable.{Map => MMap}
 import scala.reflect.internal.ModifierFlags
 import scala.collection.Seq
 
+object SireumPlugin {
+  def isSireum(global: Global)(unit: global.CompilationUnit): Boolean = {
+    var r = unit.source.file.hasExtension("slang") || unit.source.file.hasExtension("logika")
+    if (!r) {
+      val cs = unit.source.content
+      val sb = new java.lang.StringBuilder
+      var i = 0
+      while (i < cs.length && cs(i).isWhitespace) i += 1
+      var found = false
+      while (i < cs.length && !found) {
+        cs(i) match {
+          case '\n' => found = true
+          case c => if (!c.isWhitespace) sb.append(c)
+        }
+        i += 1
+      }
+      val firstLine = sb.toString
+      r = firstLine.contains("#Sireum")
+    }
+    r
+  }
+}
+
 class SireumPlugin(override val global: Global) extends Plugin {
   override val name = "sireum"
   override val description = "Compiler plugin for the Sireum Scala subset."
-  override val components: List[PluginComponent] = List(new SireumComponent(global))
+  override val components: List[PluginComponent] = List(
+    new SireumComponent(global), new SireumContractEraserComponent(global)
+  )
 
-  /*
+  /* for Scala 2.13.x
   val originalReporter: scala.reflect.internal.Reporter = global.reporter
 
   global.reporter = new scala.reflect.internal.Reporter {
@@ -261,7 +286,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     }, new String(unit.source.content), Vector(),
       (offset, msg) => global.reporter.error(unit.position(offset), s"[Slang] $msg"))
     val rwTree: MMap[Tree, Tree] = {
-      //import scala.jdk.CollectionConverters._
+      //import scala.jdk.CollectionConverters._ // for Scala 2.13.x
       import scala.collection.JavaConverters._
       new java.util.IdentityHashMap[Tree, Tree].asScala
     }
@@ -480,24 +505,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
   def newPhase(prev: Phase): StdPhase = new StdPhase(prev) {
     def apply(unit: CompilationUnit): Unit = {
-      var isSireum = unit.source.file.hasExtension("slang") || unit.source.file.hasExtension("logika")
-      if (!isSireum) {
-        val cs = unit.source.content
-        val sb = new java.lang.StringBuilder
-        var i = 0
-        while (i < cs.length && cs(i).isWhitespace) i += 1
-        var found = false
-        while (i < cs.length && !found) {
-          cs(i) match {
-            case '\n' => found = true
-            case c => if (!c.isWhitespace) sb.append(c)
-          }
-          i += 1
-        }
-        val firstLine = sb.toString
-        isSireum = firstLine.contains("#Sireum")
-      }
-      if (isSireum) {
+      if (SireumPlugin.isSireum(global)(unit)) {
         val at = new AnnotationTransformer(unit, Vector(), Vector())
         val st = new SemanticsTransformer(unit, inNative = false, inPat = false, inTrait = false)
         val b1 = st.transform(unit.body)
@@ -516,3 +524,39 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     }
   }
 }
+
+final class SireumContractEraserComponent(val global: Global) extends PluginComponent with TypingTransformers {
+
+  import global._
+
+  override val phaseName = "sireum-contract"
+  override val runsRightAfter = Some("typer")
+  override val runsAfter: List[String] = runsRightAfter.toList
+  override val runsBefore: List[String] = List[String]("patmat")
+
+  final class SemanticsTransformer(unit: CompilationUnit) extends TypingTransformer(unit) {
+    override def transform(tree: Tree): Tree = {
+      tree match {
+        case tree: DefDef =>
+          tree.rhs match {
+            case q"Contract.Only(..$_)" =>
+              val tree2 = tree.copy(rhs = EmptyTree)
+              tree2.pos = tree.pos
+              tree2
+            case _ => tree
+          }
+        case _ => tree
+      }
+    }
+  }
+
+  def newPhase(prev: Phase): StdPhase = new StdPhase(prev) {
+    def apply(unit: CompilationUnit): Unit = {
+      if (SireumPlugin.isSireum(global)(unit)) {
+        val st = new SemanticsTransformer(unit)
+        unit.body = st.transform(unit.body)
+      }
+    }
+  }
+}
+
