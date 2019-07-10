@@ -194,14 +194,15 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         case tree: DefDef =>
           tree.rhs match {
             case rhs@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) =>
-              if (inTrait) tree.copy(rhs = q"$$").copyPos(tree)
-              else tree.copy(rhs = rhs.copy(fun = sc.copy(name = TermName("lDef")).copyPos(sc)).copyPos(rhs)).copyPos(tree)
+              global.reporter.error(rhs.pos, "[Slang] l\"\"\"...\"\"\" is deprecated, please use Slang Code Contract spec.")
+              tree
             case q"Contract.Only(..$_)" => tree.copy(rhs = EmptyTree).copyPosT(tree)
             case _ =>
               sup(tree)
           }
         case tree@Apply(sc@Select(Apply(Ident(TermName("StringContext")), _), TermName("l")), _) if !inPat =>
-          tree.copy(fun = sc.copy(name = TermName("lUnit")).copyPos(sc)).copyPos(tree)
+          global.reporter.error(tree.pos, "[Slang] l\"\"\"...\"\"\" is deprecated, please use Slang Code Contract spec.")
+          tree
         case tree@Apply(Select(Apply(Ident(TermName("StringContext")), _), TermName("s")), _) if !inPat =>
           q"$sireumString($tree)".copyPosT(tree)
         case tree@Apply(Select(Ident(TermName("scala")), TermName("Symbol")), _) => tree
