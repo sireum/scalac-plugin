@@ -36,6 +36,7 @@ import scala.reflect.internal.ModifierFlags
 import scala.collection.Seq
 
 object SireumPlugin {
+
   def isSireum(global: Global)(unit: global.CompilationUnit): Boolean = {
     var r = unit.source.file.hasExtension("slang") || unit.source.file.hasExtension("logika")
     if (!r) {
@@ -55,6 +56,13 @@ object SireumPlugin {
       r = firstLine.contains("#Sireum")
     }
     r
+  }
+
+  def eval[T](exp: String): T = {
+    import scala.tools.reflect.ToolBox
+    import scala.reflect.runtime.universe
+    val tb = universe.runtimeMirror(getClass.getClassLoader).mkToolBox()
+    tb.eval(tb.parse(exp)).asInstanceOf[T]
   }
 }
 
@@ -488,6 +496,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     }
 
     def ignoreClass(tree: ClassDef): Boolean = "$anon" == tree.name.decoded
+
     def scriptObject(tree: ModuleDef): Boolean = "Main" == tree.name.decoded && {
       val stats = tree.impl.body
       if (stats.size == 2) {
@@ -501,11 +510,47 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         }
       } else false
     }
+  }
 
+  final class CCTransformer(unit: CompilationUnit) extends TypingTransformer(unit) {
+
+    def pred(trees: List[Tree]): Boolean =
+      trees.exists({
+        case q"###($_) { ..$_ }" => true
+        case _ => false
+      })
+
+    def cc(tree: Tree): List[Tree] = tree match {
+      case q"###($exp) { ..$stats }" =>
+        if (SireumPlugin.eval[Boolean](showCode(exp.asInstanceOf[global.Tree])))
+          stats.asInstanceOf[List[global.Tree]]
+        else List()
+      case _ => List(transform(tree))
+    }
+
+    override def transform(tree: Tree): Tree = {
+      tree match {
+        case tree: ModuleDef if pred(tree.impl.body) =>
+          val r = tree.copy(impl = tree.impl.copy(body =
+            for (stat <- tree.impl.body; s <- cc(stat)) yield s).copyPosT(tree.impl)).copyPosT(tree)
+          reporter.echo(showCode(r))
+          r
+        case tree: ClassDef if pred(tree.impl.body) =>
+          tree.copy(impl = tree.impl.copy(body =
+            for (stat <- tree.impl.body; s <- cc(stat)) yield s).copyPosT(tree.impl)).copyPosT(tree)
+        case tree: Block if pred(tree.stats) =>
+          Block(for (stat <- tree.stats; s <- cc(stat)) yield s, tree.expr).copyPosT(tree)
+        case _ => super.transform(tree)
+      }
+    }
   }
 
   def newPhase(prev: Phase): StdPhase = new StdPhase(prev) {
     def apply(unit: CompilationUnit): Unit = {
+      if (unit.source.content.indexOfSlice(Array('#', '#', '#')) >= 0) {
+        val cct = new CCTransformer(unit)
+        unit.body = cct.transform(unit.body)
+      }
       if (SireumPlugin.isSireum(global)(unit)) {
         val at = new AnnotationTransformer(unit, Vector(), Vector())
         val st = new SemanticsTransformer(unit, inNative = false, inPat = false, inTrait = false)
