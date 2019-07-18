@@ -531,10 +531,8 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     override def transform(tree: Tree): Tree = {
       tree match {
         case tree: ModuleDef if pred(tree.impl.body) =>
-          val r = tree.copy(impl = tree.impl.copy(body =
+          tree.copy(impl = tree.impl.copy(body =
             for (stat <- tree.impl.body; s <- cc(stat)) yield s).copyPosT(tree.impl)).copyPosT(tree)
-          reporter.echo(showCode(r))
-          r
         case tree: ClassDef if pred(tree.impl.body) =>
           tree.copy(impl = tree.impl.copy(body =
             for (stat <- tree.impl.body; s <- cc(stat)) yield s).copyPosT(tree.impl)).copyPosT(tree)
