@@ -1,4 +1,4 @@
-val scalaVer = "2.12.8"
+val scalaVer = "2.12.9"
 
 val pluginVersion = "4-SNAPSHOT"
 
@@ -62,8 +62,9 @@ lazy val `scalac-plugin` = project.settings(
   },
   Test / publishArtifact := false,
   pomIncludeRepository := { _ => false },
+  libraryDependencies := Seq(),
   pomExtra :=
-    <url>https://github.com/sireum/v3-scalac-plugin/</url>
+    <url>https://github.com/sireum/scalac-plugin/</url>
       <licenses>
         <license>
           <name>Simplified BSD License</name>
