@@ -73,24 +73,28 @@ class SireumPlugin(override val global: Global) extends Plugin {
     new SireumComponent(global), new SireumContractEraserComponent(global)
   )
 
-  /* for Scala 2.13.x
-  val originalReporter: scala.reflect.internal.Reporter = global.reporter
+  /* for Scala 2.13.1+
+  val originalReporter: scala.tools.nsc.reporters.FilteringReporter = global.reporter
 
-  global.reporter = new scala.reflect.internal.Reporter {
+  global.reporter = new scala.tools.nsc.reporters.FilteringReporter {
 
     val suppressedWarnings: Set[String] = Set(
       "symbol literal is deprecated"
     )
 
-    override protected def info0(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity, force: Boolean): Unit = {
-      if (!suppressedWarnings.exists(m => msg.contains(m))) {
-        severity match {
-          case INFO => originalReporter.echo(pos, msg)
-          case WARNING => originalReporter.warning(pos, msg)
-          case ERROR => originalReporter.error(pos, msg)
-        }
+    override def filter(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity): Int = {
+      if (suppressedWarnings.exists(m => msg.contains(m))) 2 else super.filter(pos, msg, severity)
+    }
+
+    override def doReport(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity): Unit = {
+      severity match {
+        case INFO => originalReporter.echo(pos, msg)
+        case WARNING => originalReporter.warning(pos, msg)
+        case _ => originalReporter.error(pos, msg)
       }
     }
+
+    override def settings: scala.tools.nsc.Settings = originalReporter.settings
   }
   */
 }
