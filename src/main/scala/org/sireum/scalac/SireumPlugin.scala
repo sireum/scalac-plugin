@@ -423,7 +423,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           }
           r
         case tree: ValDef =>
-          if (tree.mods.hasAnnotationNamed(TypeName("spec")))
+          if (tree.mods.hasAnnotationNamed(TypeName("spec")) && isDollar(tree.rhs))
             if (tree.mods.hasFlag(ModifierFlags.MUTABLE)) tree.copy(rhs = EmptyTree).copyPosT(tree)
             else tree.copy(mods = tree.mods | ModifierFlags.LAZY).copyPosT(tree)
           else tree
@@ -582,6 +582,11 @@ final class SireumContractEraserComponent(val global: Global) extends PluginComp
   override val runsAfter: List[String] = runsRightAfter.toList
   override val runsBefore: List[String] = List[String]("patmat")
 
+  def isDollar(t: Any): Boolean = t match {
+    case q"$$" => true
+    case _ => false
+  }
+
   final class SemanticsTransformer(unit: CompilationUnit) extends TypingTransformer(unit) {
     override def transform(tree: Tree): Tree = {
       tree match {
@@ -593,6 +598,10 @@ final class SireumContractEraserComponent(val global: Global) extends PluginComp
               tree2
             case _ => tree
           }
+        case tree: ValDef if (tree.mods.hasAnnotationNamed(TypeName("spec")) && !isDollar(tree.rhs)) =>
+          val r = q";"
+          r.pos = tree.pos
+          r
         case _ => tree
       }
     }
