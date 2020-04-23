@@ -179,7 +179,7 @@ class MetaAnnotationTransformer(val isScript: Boolean,
       if (isScript) scala.meta.dialects.Scala212.copy(allowToplevelTerms = true)
       else scala.meta.dialects.Scala212
     input.
-      replaceAllLiterally("\r\n", "\n"). // HACK: https://github.com/scalameta/scalameta/issues/443
+      replace("\r\n", "\n"). // HACK: https://github.com/scalameta/scalameta/issues/443
       parse[Source] match {
       case Parsed.Success(tree) =>
         for (stat <- tree.stats) {

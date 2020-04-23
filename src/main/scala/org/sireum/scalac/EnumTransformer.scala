@@ -63,7 +63,7 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
               }
            """,
           q"""final def byOrdinal(n: $sireumZ): $sireumOption[Type] =
-                if (0 <= n && n < elements.size) $sireumSomeQ(elements(n)) else $sireumNoneQ()
+                if ($sireumZQ(0) <= n && n < elements.size) $sireumSomeQ(elements(n)) else $sireumNoneQ()
            """
         )
         var elements = Vector[Term.Name]()
@@ -79,7 +79,7 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
           }
           val tname = Term.Name(sym)
           val ostats = List[Stat](
-            q"def ordinal: $sireumZ = ${Lit.Int(i)}",
+            q"""def ordinal: $sireumZ = $sireumZQ(${Lit.Int(i)})""",
             q"def name: $sireumString = ${Lit.String(sym)}"
           )
           decls :+= q"final case object $tname extends Type { ..$ostats }"
@@ -87,7 +87,7 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
           i += 1
         }
         decls ++= Vector[Stat](
-          q"val numOfElements: $sireumZ = ${Lit.Int(i)}",
+          q"val numOfElements: $sireumZ = $sireumZQ(${Lit.Int(i)})",
           q"val elements: $sireumISZ[Type] = $sireumISZQ[Type](..${elements.toList})"
         )
         mat.objectMembers.getOrElseUpdate(name, MSeq()) ++= decls.map(_.syntax)
