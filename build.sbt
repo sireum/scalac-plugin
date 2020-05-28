@@ -2,7 +2,7 @@ val scalaVer = "2.12.11"
 
 val pluginVersion = "4-SNAPSHOT"
 
-val metaVersion = "4.3.10"
+val metaVersion = "4.3.13"
 
 addCommandAlias("publish-local", "; project scalac-plugin; publishLocal")
 addCommandAlias("publish-signed", "; project scalac-plugin; publishSigned")
@@ -27,7 +27,11 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
     ShadeRule.rename("org.scalameta.**" -> "sh4d3.org.scalameta.@1").inAll,
     ShadeRule.rename("scala.meta.**" -> "sh4d3.scala.meta.@1").inAll,
     ShadeRule.rename("fastparse.**" -> "sh4d3.fastparse.@1").inAll,
-    ShadeRule.rename("sourcecode.**" -> "sh4d3.sourcecode.@1").inAll
+    ShadeRule.rename("sourcecode.**" -> "sh4d3.sourcecode.@1").inAll,
+    ShadeRule.rename("geny.**" -> "sh4d3.sourcecode.@1").inAll,
+    ShadeRule.rename("scala.annotation.nowarn*" -> "sh4d3.sourcecode.@1").inAll,
+    ShadeRule.rename("scala.collection.compat.**" -> "sh4d3.sourcecode.@1").inAll,
+    ShadeRule.rename("scala.jdk.CollectionConverters*" -> "sh4d3.sourcecode.@1").inAll
   ),
   assemblyExcludedJars in assembly := {
     val cp = (fullClasspath in assembly).value

@@ -176,7 +176,7 @@ class MetaAnnotationTransformer(val isScript: Boolean,
 
   def transform(): Int = {
     implicit val dialect: scala.meta.Dialect =
-      if (isScript) scala.meta.dialects.Scala212.copy(allowToplevelTerms = true)
+      if (isScript) scala.meta.dialects.Scala212.withAllowToplevelTerms(true)
       else scala.meta.dialects.Scala212
     input.
       replace("\r\n", "\n"). // HACK: https://github.com/scalameta/scalameta/issues/443
