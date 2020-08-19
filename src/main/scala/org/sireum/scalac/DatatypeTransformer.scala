@@ -167,7 +167,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
         val hashCode =
           if (hasHash) q"override lazy val hashCode: $scalaInt = hash.hashCode"
           else if (hasEqual) q"override lazy val hashCode: $scalaInt = 0"
-          else q"override lazy val hashCode: $scalaInt = { if ($$hasEquals) super.hashCode else $scalaSeqQ(this.getClass, ..${unapplyArgs.toList}).hashCode }"
+          else q"override lazy val hashCode: $scalaInt = { if ($$hasEquals) super.hashCode else $scalaSeqQ(this.getClass.getName, ..${unapplyArgs.toList}).hashCode }"
         val equals =
           if (hasEqual) {
             val eCases = Vector(if (tparams.isEmpty) p"case o: $tname => isEqual(o)"
@@ -250,7 +250,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
         val hashCode =
           if (hasHash) q"override val hashCode: $scalaInt = { hash.hashCode }"
           else if (hasEqual) q"override val hashCode: $scalaInt = { 0 }"
-          else q"override val hashCode: $scalaInt = { if ($$hasEquals) super.hashCode else this.getClass.hashCode }"
+          else q"override val hashCode: $scalaInt = { if ($$hasEquals) super.hashCode else this.getClass.getName.hashCode }"
         val equals =
           if (hasEqual) {
             val eCases =

@@ -213,7 +213,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
           if (hasHash) q"override lazy val hashCode: $scalaInt = hash.hashCode"
           else if (hasEqual) q"override lazy val hashCode: $scalaInt = 0"
           else {
-            q"override def hashCode: $scalaInt = { if ($$hasEquals) super.hashCode else $scalaSeqQ(this.getClass, ..${unapplyArgs.toList}).hashCode }"
+            q"override def hashCode: $scalaInt = { if ($$hasEquals) super.hashCode else $scalaSeqQ(this.getClass.getName, ..${unapplyArgs.toList}).hashCode }"
           }
         val equals =
           if (hasEqual) {
@@ -302,7 +302,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
         val hashCode =
           if (hasHash) q"override val hashCode: $scalaInt = { hash.hashCode }"
           else if (hasEqual) q"override val hashCode: $scalaInt = { 0 }"
-          else q"override val hashCode: $scalaInt = { if ($$hasEquals) super.hashCode else this.getClass.hashCode }"
+          else q"override val hashCode: $scalaInt = { if ($$hasEquals) super.hashCode else this.getClass.getName.hashCode }"
         val equals =
           if (hasEqual) {
             val eCases =
