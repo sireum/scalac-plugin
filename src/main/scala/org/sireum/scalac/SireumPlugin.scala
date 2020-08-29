@@ -318,13 +318,13 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     }
 
     def parseTerms(terms: Seq[String]): List[Tree] = {
-      val r = newUnitParser(terms.mkString(";\n")).parseStats
+      val r = newUnitParser(terms.mkString(";\n")).parseStats()
       r.foreach(erasePosition)
       r
     }
 
     def parseTypes(types: Seq[String]): List[Tree] = {
-      val o = newUnitParser(s"object X extends Y with ${types.mkString(" with ")}").parseStats.
+      val o = newUnitParser(s"object X extends Y with ${types.mkString(" with ")}").parseStats().
         head.asInstanceOf[ModuleDef]
       erasePosition(o)
       o.impl.parents.tail
