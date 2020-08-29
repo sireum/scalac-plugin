@@ -2,7 +2,7 @@ val scalaVer = "2.12.12"
 
 val pluginVersion = "4-SNAPSHOT"
 
-val metaVersion = "4.3.20"
+val metaVersion = "4.3.21"
 
 addCommandAlias("publish-local", "; project scalac-plugin; publishLocal")
 addCommandAlias("publish-signed", "; project scalac-plugin; publishSigned")
@@ -28,10 +28,12 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
     ShadeRule.rename("scala.meta.**" -> "sh4d3.scala.meta.@1").inAll,
     ShadeRule.rename("fastparse.**" -> "sh4d3.fastparse.@1").inAll,
     ShadeRule.rename("sourcecode.**" -> "sh4d3.sourcecode.@1").inAll,
-    ShadeRule.rename("geny.**" -> "sh4d3.sourcecode.@1").inAll,
-    ShadeRule.rename("scala.annotation.nowarn*" -> "sh4d3.sourcecode.@1").inAll,
-    ShadeRule.rename("scala.collection.compat.**" -> "sh4d3.sourcecode.@1").inAll,
-    ShadeRule.rename("scala.jdk.CollectionConverters*" -> "sh4d3.sourcecode.@1").inAll
+    ShadeRule.rename("geny.**" -> "sh4d3.geny.@1").inAll,
+    ShadeRule.rename("org.jline.**" -> "sh4d3.org.jline.@1").inAll,
+    ShadeRule.rename("scala.collection.compat.immutable.*" -> "sh4d3.scala.collection.compat.immutable.@1").inAll,
+    ShadeRule.rename("scala.collection.compat.immutable.*" -> "sh4d3.scala.collection.compat.immutable.@1").inAll,
+    ShadeRule.rename("scala.collection.compat.*" -> "sh4d3.scala.collection.compat.@1").inAll,
+    ShadeRule.rename("scala.collection.compat.*" -> "sh4d3.scala.collection.compat.@1").inAll,
   ),
   assemblyExcludedJars in assembly := {
     val cp = (fullClasspath in assembly).value
