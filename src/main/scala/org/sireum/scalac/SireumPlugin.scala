@@ -73,7 +73,6 @@ class SireumPlugin(override val global: Global) extends Plugin {
     new SireumComponent(global), new SireumContractEraserComponent(global)
   )
 
-  /* for Scala 2.13.1+
   val originalReporter: scala.tools.nsc.reporters.FilteringReporter = global.reporter
 
   global.reporter = new scala.tools.nsc.reporters.FilteringReporter {
@@ -96,7 +95,6 @@ class SireumPlugin(override val global: Global) extends Plugin {
 
     override def settings: scala.tools.nsc.Settings = originalReporter.settings
   }
-  */
 }
 
 final class SireumComponent(val global: Global) extends PluginComponent with TypingTransformers {
@@ -299,8 +297,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     }, new String(unit.source.content), Vector(),
       (offset, msg) => global.reporter.error(unit.position(offset), s"[Slang] $msg"))
     val rwTree: MMap[Tree, Tree] = {
-      //import scala.jdk.CollectionConverters._ // for Scala 2.13.x
-      import scala.collection.JavaConverters._
+      import scala.jdk.CollectionConverters._
       new java.util.IdentityHashMap[Tree, Tree].asScala
     }
 
