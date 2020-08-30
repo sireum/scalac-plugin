@@ -558,13 +558,15 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         val newBody = fixPos(b2)
         unit.body = newBody
         val dir = settings.outputDirs.outputDirFor(unit.source.file).file
-        val filename = unit.source.file.file.getName
-        val file = new java.io.File(dir, "transformed/" +
-          (if (at.packageName.isEmpty) "" else at.packageName.mkString("/") + '/') + filename)
-        file.getParentFile.mkdirs()
-        val fw = new java.io.FileWriter(file)
-        fw.write(showCode(unit.body))
-        fw.close()
+        if (!dir.toURI.toASCIIString.contains(".jar/") && "true" == System.getenv("SIREUM_TRANSFORMED")) {
+          val filename = unit.source.file.file.getName
+          val file = new java.io.File(dir, "transformed/" +
+            (if (at.packageName.isEmpty) "" else at.packageName.mkString("/") + '/') + filename)
+          file.getParentFile.mkdirs()
+          val fw = new java.io.FileWriter(file)
+          fw.write(showCode(unit.body))
+          fw.close()
+        }
       }
     }
   }
