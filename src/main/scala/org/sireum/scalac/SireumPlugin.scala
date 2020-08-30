@@ -395,7 +395,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             val main = stats(1).asInstanceOf[DefDef]
             val block = main.rhs.asInstanceOf[Block]
             val cls = block.stats.head.asInstanceOf[ClassDef]
-            val argsStmt = fixPos(q"_root_.org.sireum.App.args = _root_.org.sireum.ISZ(args.map(s => _root_.org.sireum.String(s.trim)): _*)".copyPosT(cls.impl))
+            val argsStmt = fixPos(q"_root_.org.sireum.App.args = _root_.org.sireum.ISZ(args.map(s => _root_.org.sireum.String(s.trim)).toIndexedSeq: _*)".copyPosT(cls.impl))
             val newImpl = cls.impl.copy(body = cls.impl.body.head :: argsStmt :: cls.impl.body.tail).copyPosT(cls.impl)
             val newCls = cls.copy(impl = newImpl).copyPosT(cls)
             val newMain = main.copy(rhs = block.copy(stats =
