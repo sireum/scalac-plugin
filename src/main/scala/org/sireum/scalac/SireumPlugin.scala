@@ -577,8 +577,7 @@ final class SireumContractEraserComponent(val global: Global) extends PluginComp
   import global._
 
   override val phaseName = "sireum-contract"
-  override val runsRightAfter = Some("typer")
-  override val runsAfter: List[String] = runsRightAfter.toList
+  override val runsAfter: List[String] = List[String]("typer")
   override val runsBefore: List[String] = List[String]("patmat")
 
   def isDollar(t: Any): Boolean = t match {
