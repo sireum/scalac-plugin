@@ -21,17 +21,24 @@ class ExtTransformer(mat: MetaAnnotationTransformer) {
           mat.error(tree.pos, s"Invalid @ext object form; it has to be of the form '@ext object ${tree.name.value} { ... }'.")
           return
         }
-        var extObjName = tree.name.value + extSuffix
-        if (args.size == 1) {
-          args.head match {
-            case q"name = ${exp: Lit.String}" => extObjName = exp.value
-            case q"${exp: Lit.String}" => extObjName = exp.value
-            case _ =>
-              mat.error(args.head.pos, s"""Invalid @ext name argument; it has to be of the form 'name = "..."' or '"..."'.""")
-              return
+        val extName: Term.Ref = {
+          var extObjName = tree.name.value + extSuffix
+          if (args.size == 1) {
+            args.head match {
+              case q"name = ${exp: Lit.String}" => extObjName = exp.value
+              case q"${exp: Lit.String}" => extObjName = exp.value
+              case _ =>
+                mat.error(args.head.pos, s"""Invalid @ext name argument; it has to be of the form 'name = "..."' or '"..."'.""")
+                return
+            }
           }
+          val ids = extObjName.split('.')
+          var t: Term.Ref = Term.Name(ids(0).trim)
+          for (i <- 1 until ids.length) {
+            t = Term.Select(t, Term.Name(ids(i).trim))
+          }
+          t
         }
-        val extName = Term.Name(extObjName)
         for (stat <- tree.templ.stats) stat match {
           case q"..$mods val ${x: Pat.Var}: $tpeopt = $$" =>
             if (mods.nonEmpty || tpeopt.isEmpty) {
