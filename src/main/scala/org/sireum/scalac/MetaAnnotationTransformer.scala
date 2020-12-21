@@ -59,6 +59,7 @@ object MetaAnnotationTransformer {
   val scalaBigInt = t"_root_.scala.BigInt"
   val scalaSeq = t"_root_.scala.Seq"
   val scalaOption = t"_root_.scala.Option"
+  val scalaSome = t"_root_.scala.Some"
 
   val scalaIntQ = q"_root_.scala.Int"
   val scalaLongQ = q"_root_.scala.Long"
@@ -160,6 +161,7 @@ class MetaAnnotationTransformer(val isScript: Boolean,
   val objectSupers: MMap[Vector[String], MSeq[String]] = MMap()
   val objectMembers: MMap[Vector[String], MSeq[String]] = MMap()
   val adtTraits: MSet[Vector[String]] = MSet()
+  val adtClasses: MSet[Vector[String]] = MSet()
   val classSupers: MMap[Vector[String], MSeq[String]] = MMap()
   val classMembers: MMap[Vector[String], MSeq[String]] = MMap()
   val classReplace: MMap[Vector[String], String] = MMap()
@@ -180,13 +182,13 @@ class MetaAnnotationTransformer(val isScript: Boolean,
       else scala.meta.dialects.Scala213
     input.
       replace("\r\n", "\n"). // HACK: https://github.com/scalameta/scalameta/issues/443
-      parse[Source] match {
-      case Parsed.Success(tree) =>
-        for (stat <- tree.stats) {
+    parse[Source] match {
+      case r: Parsed.Success[Source] =>
+        for (stat <- r.tree.stats) {
           transformTree(Vector(), stat)
         }
         -1
-      case Parsed.Error(pos, _, _) => pos.start
+      case r: Parsed.Error => r.pos.start
     }
   }
 

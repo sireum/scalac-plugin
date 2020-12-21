@@ -34,6 +34,7 @@ import scala.collection.{Map => CMap}
 import scala.collection.mutable.{Map => MMap}
 import scala.reflect.internal.ModifierFlags
 import scala.collection.Seq
+import  scala.reflect.internal.Reporter
 
 object SireumPlugin {
 
@@ -78,11 +79,19 @@ class SireumPlugin(override val global: Global) extends Plugin {
   global.reporter = new scala.tools.nsc.reporters.FilteringReporter {
 
     val suppressedWarnings: Set[String] = Set(
-      "symbol literal is deprecated"
+      "symbol literal is deprecated",
+      "The outer reference in this type test cannot be checked at run time",
     )
 
     override def filter(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity): Int = {
-      if (suppressedWarnings.exists(m => msg.contains(m))) 2 else super.filter(pos, msg, severity)
+      if (suppressedWarnings.exists(m => msg.contains(m))) return Reporter.Suppress
+      if (msg.startsWith("match may not be exhaustive")) {
+        val text = pos.lineContent.trim
+        if ((text.startsWith("val") || text.startsWith("var")) && !text.contains("match")) {
+          return scala.reflect.internal.Reporter.Suppress
+        }
+      }
+      super.filter(pos, msg, severity)
     }
 
     override def doReport(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity): Unit = {
@@ -247,10 +256,8 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           (if (inPat)
             if (inNative) tree else pq"$sireumStringPat($tree)"
           else q"$sireumString($tree)").copyPos(tree)
-        case q"$mods val $pat: $tpt = $rhs" =>
-          if (!(rhs == EmptyTree || isDollar(rhs))) q"$mods val $pat: $tpt = ${assign(rhs)}".copyPos(tree) else tree
-        case q"$mods var $pat: $tpt = $rhs" =>
-          if (!(rhs == EmptyTree || isDollar(rhs))) q"$mods var $pat: $tpt = ${assign(rhs)}".copyPos(tree) else tree
+        case tree: ValDef if !(tree.rhs == EmptyTree || isDollar(tree.rhs)) =>
+          tree.copy(rhs = assign(tree.rhs)).copyPos(tree)
         case tree: Assign => tree.copy(rhs = assign(tree.rhs)).copyPos(tree)
         case tree@Apply(Select(Ident(TermName(f)), TermName("update")), l) if !inPat && (f == "up" || f == "pat") =>
           tree.copy(args = l.dropRight(1) ++ l.takeRight(1).map(transform)).copyPos(tree)
@@ -279,8 +286,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           } else {
             tree.copy(expr = assign(tree.expr)).copyPos(tree)
           }
-        case _ =>
-          super.transform(tree)
+        case _ =>  super.transform(tree)
       }
       r
     }
@@ -367,6 +373,8 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           var r = tree2
           if (mat.adtTraits.contains(enclosing)) {
             r = r.copy(mods = r.mods | global.Flag.SEALED).copyPosT(r)
+          } else if (mat.adtClasses.contains(enclosing)) {
+            r = r.copy(mods = r.mods | global.Flag.FINAL).copyPosT(r)
           }
           mat.classMembers.get(enclosing) match {
             case Some(members) =>
@@ -381,6 +389,13 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
                 case q"$mods trait $tpname[..$tparams] extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
                   val newStats = parseTerms(members) ++ rewriteStats(mat.classMemberReplace, stats)
                   r = q"$mods trait $tpname[..$tparams] extends { ..$earlydefns } with ..$parents { $self => ..$newStats }".copyPosT(r)
+                case _ =>
+                  var text = new String(r.pos.source.content.slice(r.pos.start, r.pos.end))
+                  val i = text.indexOf('\n')
+                  if (i > 0) {
+                    text = text.substring(0, i) + "..."
+                  }
+                  global.reporter.error(r.pos, s"[Slang] Invalid class definition in Slang: '$text'.")
               }
             case _ =>
           }

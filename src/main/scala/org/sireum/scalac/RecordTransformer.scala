@@ -269,27 +269,27 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
             (q"def apply(..${oApplyParams.toList}): $tpe = { new $tname(..${applyArgs.toList.map(arg => q"$helperAssign($arg)")}) }",
               unapplyTypes.size match {
                 case 0 => q"def unapply(o: $tpe): $scalaBoolean = { true }"
-                case 1 => q"def unapply(o: $tpe): $scalaOption[${unapplyTypes.head}] = { $scalaSomeQ($helperClone(o.${unapplyArgs.head})) }"
-                case n if n <= 22 => q"def unapply(o: $tpe): $scalaOption[(..${unapplyTypes.toList})] = { $scalaSomeQ((..${unapplyArgs.map(arg => q"$helperClone(o.$arg)").toList})) }"
+                case 1 => q"def unapply(o: $tpe): $scalaSome[${unapplyTypes.head}] = { $scalaSomeQ($helperClone(o.${unapplyArgs.head})) }"
+                case n if n <= 22 => q"def unapply(o: $tpe): $scalaSome[(..${unapplyTypes.toList})] = { $scalaSomeQ((..${unapplyArgs.map(arg => q"$helperClone(o.$arg)").toList})) }"
                 case _ =>
                   val unapplyTypess = unapplyTypes.grouped(22).map(types => if (types.size == 1) types.head else t"(..${types.toList})").toList
                   val unapplyArgss = unapplyArgs.grouped(22).map(args =>
                     if (args.size == 1) q"$helperClone(o.${args.head})"
                     else q"(..${args.map(a => q"$helperClone(o.$a)").toList})").toList
-                  q"def unapply(o: $tpe): $scalaOption[(..$unapplyTypess)] = { $scalaSomeQ((..$unapplyArgss)) }"
+                  q"def unapply(o: $tpe): $scalaSome[(..$unapplyTypess)] = { $scalaSomeQ((..$unapplyArgss)) }"
               })
           else
             (q"def apply[..$tparams](..${oApplyParams.toList}): $tpe = { new $tname(..${applyArgs.toList}) }",
               unapplyTypes.size match {
                 case 0 => q"def unapply[..$tparams](o: $tpe): $scalaBoolean = { true }"
-                case 1 => q"def unapply[..$tparams](o: $tpe): $scalaOption[${unapplyTypes.head}] = { $scalaSomeQ($helperClone(o.${unapplyArgs.head})) }"
-                case n if n <= 22 => q"def unapply[..$tparams](o: $tpe): $scalaOption[(..${unapplyTypes.toList})] = { $scalaSomeQ((..${unapplyArgs.map(arg => q"$helperClone(o.$arg)").toList})) }"
+                case 1 => q"def unapply[..$tparams](o: $tpe): $scalaSome[${unapplyTypes.head}] = { $scalaSomeQ($helperClone(o.${unapplyArgs.head})) }"
+                case n if n <= 22 => q"def unapply[..$tparams](o: $tpe): $scalaSome[(..${unapplyTypes.toList})] = { $scalaSomeQ((..${unapplyArgs.map(arg => q"$helperClone(o.$arg)").toList})) }"
                 case _ =>
                   val unapplyTypess = unapplyTypes.grouped(22).map(types => if (types.size == 1) types.head else t"(..${types.toList})").toList
                   val unapplyArgss = unapplyArgs.grouped(22).map(args =>
                     if (args.size == 1) q"$helperClone(o.${args.head})"
                     else q"(..${args.map(a => q"$helperClone(o.$a)").toList})").toList
-                  q"def unapply[..$tparams](o: $tpe): $scalaOption[(..$unapplyTypess)] = { $scalaSomeQ((..$unapplyArgss)) }"
+                  q"def unapply[..$tparams](o: $tpe): $scalaSome[(..$unapplyTypess)] = { $scalaSomeQ((..$unapplyArgss)) }"
               })
         mat.objectMembers.getOrElseUpdate(name, MSeq()) ++= Vector(apply.syntax, unapply.syntax)
       }
@@ -351,5 +351,6 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
       }
     }
 
+    mat.adtClasses.add(name)
   }
 }
