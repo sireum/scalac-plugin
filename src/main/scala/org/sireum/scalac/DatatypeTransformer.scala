@@ -220,7 +220,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
           if (tparams.isEmpty)
             (q"def apply(..${oApplyParams.toList}): $tpe = { new $tname(..${applyArgs.toList}) }",
               unapplyTypes.size match {
-                case 0 => q"def unapply(o: $tpe): $scalaBoolean = { true }"
+                case 0 => q"def unapply(o: $tpe): true = { true }"
                 case 1 => q"def unapply(o: $tpe): $scalaSome[${unapplyTypes.head}] = { $scalaSomeQ(o.${unapplyArgs.head}) }"
                 case n if n <= 22 => q"def unapply(o: $tpe): $scalaSome[(..${unapplyTypes.toList})] = { $scalaSomeQ((..${unapplyArgs.map(arg => q"o.$arg").toList})) }"
                 case _ =>
@@ -233,7 +233,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
           else
             (q"def apply[..$tparams](..${oApplyParams.toList}): $tpe = { new $tname(..${applyArgs.toList}) }",
               unapplyTypes.size match {
-                case 0 => q"def unapply[..$tparams](o: $tpe): $scalaBoolean = { true }"
+                case 0 => q"def unapply[..$tparams](o: $tpe): true = { true }"
                 case 1 => q"def unapply[..$tparams](o: $tpe): $scalaSome[${unapplyTypes.head}] = { $scalaSomeQ(o.${unapplyArgs.head}) }"
                 case n if n <= 22 => q"def unapply[..$tparams](o: $tpe): $scalaSome[(..${unapplyTypes.toList})] = { $scalaSomeQ((..${unapplyArgs.map(arg => q"o.$arg").toList})) }"
                 case _ =>
@@ -280,11 +280,11 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
           if (tparams.isEmpty)
             (q"private[this] val $$v: $scalaAnyRef = { new $tname() }",
               q"def apply(): $tpe = { $$v.asInstanceOf[$tpe] }",
-              q"def unapply(o: $tpe): $scalaBoolean = { true }")
+              q"def unapply(o: $tpe): true = { true }")
           else
             (q"private[this] val $$v: $scalaAnyRef = { new ${t"$tname[..${tparams.map(_ => scalaNothing)}]"}() }",
               q"def apply[..$tparams](): $tpe = { $$v.asInstanceOf[$tpe] }",
-              q"def unapply[..$tparams](o: $tpe): $scalaBoolean = { true }")
+              q"def unapply[..$tparams](o: $tpe): true = { true }")
         mat.objectMembers.getOrElseUpdate(name, MSeq()) ++= Vector(v.syntax, apply.syntax, unapply.syntax)
       }
     }
