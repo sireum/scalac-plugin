@@ -2,7 +2,7 @@ val scalaVer = "2.13.5"
 
 val pluginVersion = "4-SNAPSHOT"
 
-val metaVersion = "4.4.8"
+val metaVersion = "4.4.13"
 
 addCommandAlias("publish-local", "; project scalac-plugin; publishLocal")
 addCommandAlias("publish-signed", "; project scalac-plugin; publishSigned")
@@ -16,12 +16,12 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
   version := pluginVersion,
   scalacOptions := Seq("-target:jvm-1.8", "-deprecation",
     "-Ydelambdafy:method", "-feature", "-unchecked", "-Xfatal-warnings"),
-  assembly / assemblyOption := (assemblyOption in assembly).value.copy(includeScala = false),
+  assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false),
   Compile / assembly / artifact := {
     val art = (Compile / assembly / artifact).value
     art.withClassifier(Some("all"))
   },
-  assemblyShadeRules in assembly := Seq(
+  assembly / assemblyShadeRules := Seq(
     ShadeRule.rename("com.**" -> "sh4d3.com.@1").inAll,
     ShadeRule.rename("org.langmeta.**" -> "sh4d3.org.langmeta.@1").inAll,
     ShadeRule.rename("org.scalameta.**" -> "sh4d3.org.scalameta.@1").inAll,
@@ -35,8 +35,8 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
     ShadeRule.rename("scala.collection.compat.*" -> "sh4d3.scala.collection.compat.@1").inAll,
     ShadeRule.rename("scala.collection.compat.*" -> "sh4d3.scala.collection.compat.@1").inAll,
   ),
-  assemblyExcludedJars in assembly := {
-    val cp = (fullClasspath in assembly).value
+  assembly / assemblyExcludedJars := {
+    val cp = (assembly / fullClasspath).value
     cp filter {x =>
       x.data.getName.contains("scalapb") ||
         x.data.getName.contains("protobuf") ||
@@ -49,15 +49,15 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
     "org.scala-lang" % "scala-compiler" % scalaVer,
     "org.scalameta" %% "scalameta" % metaVersion
   ),
-  skip in publish := true
-)).settings(addArtifact(artifact in(Compile, assembly), assembly).settings: _*)
+  publish / skip := true
+)).settings(addArtifact(Compile / assembly / artifact, assembly).settings: _*)
 
 lazy val `scalac-plugin` = project.settings(
   organization := "org.sireum",
   name := "scalac-plugin",
   scalaVersion := scalaVer,
   version := pluginVersion,
-  Compile / packageBin  := (assembly in(`scalac-plugin-assembly`, Compile)).value,
+  Compile / packageBin := (`scalac-plugin-assembly` / Compile / assembly).value,
   publishMavenStyle := true,
   publishTo := {
     val nexus = "https://oss.sonatype.org/"
