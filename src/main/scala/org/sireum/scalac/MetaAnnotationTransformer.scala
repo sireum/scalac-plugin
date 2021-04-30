@@ -219,6 +219,7 @@ class MetaAnnotationTransformer(val isScript: Boolean,
                 case "bits" if ann.init.argss.size == 1 => bt.transform(enclosing, parent, ann.init.argss.head)
                 case "ext" if ann.init.argss.size == 1 => ext.transform (enclosing, parent, ann.init.argss.head)
                 case "ext" if ann.init.argss.isEmpty => ext.transform (enclosing, parent, List())
+                case "just" if ann.init.argss.size <= 1 => // skip
                 case _ => error(tree.pos, s"Invalid annotation $annSyntax.")
               }
           }
