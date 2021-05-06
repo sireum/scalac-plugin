@@ -172,7 +172,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
           if (hasEqual) {
             val eCases = Vector(if (tparams.isEmpty) p"case o: $tname => isEqual(o)"
             else p"case (o: $tname[..$tVars] @unchecked) => isEqual(o)",
-              p"case _ => halt(${Lit.String("Invalid equality test between ")} + this.getClass + ${Lit.String(" and ")} + o.getClass)")
+              p"case _ => return false")
             q"override def equals(o: $scalaAny): $scalaBoolean = { if (this eq o.asInstanceOf[$scalaAnyRef]) true else o match { ..case ${eCases.toList} } }"
           } else {
             val eCaseEqs = unapplyArgs.map(arg => q"this.$arg == o.$arg")
@@ -256,7 +256,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
             val eCases =
               Vector(if (tparams.isEmpty) p"case o: $tname => isEqual(o)"
               else p"case (o: $tname[..$tVars] @unchecked) => isEqual(o)",
-                p"case _ => halt(${Lit.String("Invalid equality test between ")} + this.getClass + ${Lit.String(" and ")} + o.getClass)")
+                p"case _ => return false")
             q"override def equals(o: $scalaAny): $scalaBoolean = { if (this eq o.asInstanceOf[$scalaAnyRef]) true else o match { ..case ${eCases.toList} } }"
           } else {
             val eCases =

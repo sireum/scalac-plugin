@@ -51,7 +51,7 @@ class SigTransformer(mat: MetaAnnotationTransformer) {
             val eCases =
               List(if (tparams.isEmpty) p"case o: $tname => isEqual(o)"
               else p"case (o: $tname[..$tVars] @unchecked) => isEqual(o)",
-                p"case _ => halt(${Lit.String("Invalid equality test between ")} + this.getClass + ${Lit.String(" and ")} + o.getClass)")
+                p"case _ => return false")
             List(q"protected override def $$hasEquals = true",
               q"override def equals(o: $scalaAny): $scalaBoolean = { o match { ..case $eCases } }")
           } else List()

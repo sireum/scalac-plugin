@@ -308,13 +308,13 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
             val eCases =
               Vector(if (tparams.isEmpty) p"case o: $tname => isEqual(o)"
               else p"case (o: $tname[..$tVars] @unchecked) => isEqual(o)",
-                p"case _ => halt(${Lit.String("Invalid equality test between ")} + this.getClass + ${Lit.String(" and ")} + o.getClass)")
+                p"case _ => return false")
             q"override def equals(o: $scalaAny): $scalaBoolean = { if (this eq o.asInstanceOf[$scalaAnyRef]) true else o match { ..case ${eCases.toList} } }"
           } else {
             val eCases =
               Vector(if (tparams.isEmpty) p"case o: $tname => true"
               else p"case (o: $tname[..$tVars] @unchecked) => true",
-                p"case _ => halt(${Lit.String("Invalid equality test between ")} + this.getClass + ${Lit.String(" and ")} + o.getClass)")
+                p"case _ => return false")
             q"override def equals(o: $scalaAny): $scalaBoolean = { if ($$hasEquals) super.equals(o) else if (this eq o.asInstanceOf[$scalaAnyRef]) true else o match { ..case ${eCases.toList} } }"
           }
         val toString = {
