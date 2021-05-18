@@ -77,7 +77,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
       mat.error(tree.pos, "Slang @datatype classes have to be of the form '@record class <id> ... (...) ... { ... }'.")
       return
     }
-    val q"..$_ class $tname[..$tparams] ..$_ (...$paramss) extends $_" = tree
+    val (tname, tparams, paramss) = (tree.name, tree.tparams, tree.ctor.paramss)
     val tVars = tparams.map { tp => Type.Name(tp.name.value) }
     val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
     val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats, s => mat.error(tree.pos, s))
