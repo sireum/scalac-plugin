@@ -78,11 +78,11 @@ class ExtTransformer(mat: MetaAnnotationTransformer) {
             }
             val mname = stat.name
             val newStat = if (tVars.isEmpty)
-              if (stat.paramss.isEmpty) stat.copy(body = q"$extName.$mname")
-              else stat.copy(body = q"$extName.$mname(..$params)")
+              if (stat.paramss.isEmpty) stat.copy(body = q"org.sireum.helper.$$ret($extName.$mname)")
+              else stat.copy(body = q"org.sireum.helper.$$ret($extName.$mname(..$params))")
             else
-              if (stat.paramss.isEmpty) stat.copy(body = q"$extName.$mname[..$tVars]")
-              else stat.copy(body = q"$extName.$mname[..$tVars](..$params)")
+              if (stat.paramss.isEmpty) stat.copy(body = q"org.sireum.helper.$$ret($extName.$mname[..$tVars])")
+              else stat.copy(body = q"org.sireum.helper.$$ret($extName.$mname[..$tVars](..$params))")
             mat.objectMemberReplace(name :+ mname.value) = newStat.syntax
           case tree: Defn.Trait =>
             if (tree.tparams.nonEmpty ||

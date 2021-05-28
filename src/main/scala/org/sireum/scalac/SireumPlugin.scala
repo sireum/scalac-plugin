@@ -152,6 +152,8 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
   def assignQ = q"$sireumQ.helper.$$assign"
 
+  def retQ = q"$sireumQ.helper.$$ret"
+
   def tmatchQ = q"$sireumQ.helper.$$tmatch"
 
   def sireumCPat = pq"$sireumQ.C"
@@ -201,6 +203,16 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
       case _: Function => trans(tree)
       case Apply(Select(Apply(Ident(TermName("StringContext")), _), _), _) => trans(tree)
       case _ => assignNoTrans(trans(tree))
+    }
+
+    def retNoTrans(tree: Tree): Tree =
+      if (inPat) tree else q"$retQ($tree)".copyPos(tree)
+
+    def ret(tree: Any): Tree = tree match {
+      case _: Literal => trans(tree)
+      case _: Function => trans(tree)
+      case Apply(Select(Apply(Ident(TermName("StringContext")), _), _), _) => trans(tree)
+      case _ => retNoTrans(trans(tree))
     }
 
     def tmatch(tree: Tree): Tree =
@@ -280,13 +292,19 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           val b = transform(tree.body)
           if ((pat ne tree.pat) || (g ne tree.guard) || (b ne tree.body)) tree.copy(pat = pat, guard = g, body = b).copyPos(tree) else tree
         case q"(..$exprs)" if exprs.size > 1 => q"(..${exprs.map(assign)})".copyPos(tree)
+        case tree: Function if tree.vparams.forall(_.tpt.nonEmpty) =>
+          if (tree.vparams.isEmpty && (tree.body == EmptyTree || tree.body == q"()")) {
+            return tree
+          } else {
+            tree.copy(body = ret(tree.body)).copyPos(tree)
+          }
         case tree: Return =>
           if (tree.expr == EmptyTree || tree == q"()") {
             return tree
           } else {
-            tree.copy(expr = assign(tree.expr)).copyPos(tree)
+            tree.copy(expr = ret(tree.expr)).copyPos(tree)
           }
-        case _ =>  super.transform(tree)
+        case _ => super.transform(tree)
       }
       r
     }
