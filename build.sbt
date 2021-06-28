@@ -2,7 +2,7 @@ val scalaVer = "2.13.6"
 
 val pluginVersion = "4-SNAPSHOT"
 
-val metaVersion = "4.4.21"
+val metaVersion = "4.4.22"
 
 addCommandAlias("publish-local", "; project scalac-plugin; publishLocal")
 addCommandAlias("publish-signed", "; project scalac-plugin; publishSigned")
@@ -16,7 +16,7 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
   version := pluginVersion,
   scalacOptions := Seq("-target:jvm-1.8", "-deprecation",
     "-Ydelambdafy:method", "-feature", "-unchecked", "-Xfatal-warnings"),
-  assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false),
+  assembly / assemblyOption ~= { _.withIncludeScala(false) },
   Compile / assembly / artifact := {
     val art = (Compile / assembly / artifact).value
     art.withClassifier(Some("all"))
