@@ -571,7 +571,8 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           tree.copy(impl = tree.impl.copy(body =
             for (stat <- tree.impl.body; s <- cc(stat)) yield s).copyPosT(tree.impl)).copyPosT(tree)
         case tree: Block if pred(tree.stats) =>
-          Block(for (stat <- tree.stats; s <- cc(stat)) yield s, tree.expr).copyPosT(tree)
+          val l = (for (stat <- tree.stats; s <- cc(stat)) yield s) ++ cc(tree.expr)
+          Block(l.take(l.size - 1), l.last).copyPosT(tree)
         case _ => super.transform(tree)
       }
     }
