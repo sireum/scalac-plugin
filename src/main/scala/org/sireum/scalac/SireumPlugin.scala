@@ -38,6 +38,8 @@ import  scala.reflect.internal.Reporter
 
 object SireumPlugin {
 
+  val implicationOps: Set[String] = Set("->:", "-->:")
+
   def isSireum(global: Global)(unit: global.CompilationUnit): Boolean = {
     var r = unit.source.file.hasExtension("slang") || unit.source.file.hasExtension("logika")
     if (!r) {
@@ -368,7 +370,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     override def transform(tree: Tree): Tree = {
       val oldEnclosing = enclosing
       val tree2 = tree match {
-        case q"{ $_ val $x1 = $e1; $e2.${op: Name}($x2) }" if op.decodedName.toString.endsWith(":") =>
+        case q"{ $_ val $x1 = $e1; $e2.${op: Name}($x2) }" if SireumPlugin.implicationOps.contains(op.decodedName.toString) =>
           val q"{ $s1; $s2 }" = tree
           val newS2 = q"$x2.$op($e2)".copyPos(s2)
           q"{ $s1; $newS2 }".copyPos(tree)
