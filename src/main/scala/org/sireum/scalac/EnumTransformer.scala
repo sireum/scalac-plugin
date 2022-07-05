@@ -51,6 +51,9 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
 
                 final def isEqual(other: Type): $sireumB = this == other
 
+                @inline def ===(other: Type): $sireumB = this == other
+                @inline def =!=(other: Type): $sireumB = this != other
+
                 final def compare(that: Type): $scalaInt = this.ordinal.compareTo(that.ordinal)
 
                 final def string: $sireumString = toString

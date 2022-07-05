@@ -71,8 +71,8 @@ object MetaAnnotationTransformer {
 
   val enumSig = t"_root_.org.sireum.EnumSig"
   val datatypeSig = t"_root_.org.sireum.DatatypeSig"
-  val immutable = t"_root_.org.sireum.Immutable"
-  val mutable = t"_root_.org.sireum.Mutable"
+  val sig = t"_root_.org.sireum.SigTrait"
+  val msig = t"_root_.org.sireum.MSigTrait"
   val recordSig = t"_root_.org.sireum.RecordSig"
 
   val sireumStringEscape = q"_root_.org.sireum.String.escape"

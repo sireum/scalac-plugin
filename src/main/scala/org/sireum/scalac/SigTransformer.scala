@@ -60,7 +60,7 @@ class SigTransformer(mat: MetaAnnotationTransformer) {
           if (hasString) List(q"override def toString: $javaString = { string.value }")
           else List()
         mat.classMembers.getOrElseUpdate(name, MSeq()) ++= (hash.map(_.syntax) ++ equals.map(_.syntax) ++ toString.map(_.syntax))
-        mat.classSupers.getOrElseUpdate(name, MSeq()) += (if (isImmutable) immutable else mutable).syntax
+        mat.classSupers.getOrElseUpdate(name, MSeq()) += (if (isImmutable) sig else msig).syntax
       case _ =>
         val ann = if (isImmutable) "@sig" else "@msig"
         mat.error(tree.pos, s"Slang $ann can only be applied to traits.")

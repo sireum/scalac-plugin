@@ -315,6 +315,8 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
                   @inline def isZeroIndex: $scalaBoolean = $termName.isZeroIndex
                   @inline def isSigned: $scalaBoolean = $termName.isSigned
                   @inline def isWrapped: $scalaBoolean = $termName.isWrapped
+                  @inline def ===(that: $typeName): $sireumB = value == that.value
+                  @inline def =!=(that: $typeName): $sireumB = value != that.value
                   def make(v: $valueTypeName): $typeName = $termName(v)
                   def boxer = $termName.Boxer
                   override def equals(that: $scalaAny): $scalaBoolean =
@@ -334,6 +336,8 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
                   @inline def isZeroIndex: $scalaBoolean = $termName.isZeroIndex
                   @inline def isSigned: $scalaBoolean = $termName.isSigned
                   @inline def isWrapped: $scalaBoolean = $termName.isWrapped
+                  @inline def ===(that: $typeName): $sireumB = value == that.value
+                  @inline def =!=(that: $typeName): $sireumB = value != that.value
                   def make(v: $valueTypeName): $typeName = $termName(v)
                   def boxer = $termName.Boxer
                 }""".syntax
