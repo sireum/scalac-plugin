@@ -33,7 +33,7 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
     ShadeRule.rename("scala.collection.compat.immutable.*" -> "sh4d3.scala.collection.compat.immutable.@1").inAll,
     ShadeRule.rename("scala.collection.compat.immutable.*" -> "sh4d3.scala.collection.compat.immutable.@1").inAll,
     ShadeRule.rename("scala.collection.compat.*" -> "sh4d3.scala.collection.compat.@1").inAll,
-    ShadeRule.rename("scala.collection.compat.*" -> "sh4d3.scala.collection.compat.@1").inAll,
+    ShadeRule.rename("scala.util.control.compat.*" -> "sh4d3.scala.util.control.compat.@1").inAll,
   ),
   assembly / assemblyExcludedJars := {
     val cp = (assembly / fullClasspath).value
