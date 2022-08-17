@@ -213,6 +213,8 @@ class MetaAnnotationTransformer(val isScript: Boolean,
             case "@record" => rdt.transform(enclosing, parent)
             case "@sig" => st.transform(isImmutable = true, enclosing, parent)
             case "@spec" => // skip
+            case "@imm" => // skip
+            case "@mut" => // skip
             case annSyntax =>
               ann.init.tpe.syntax match {
                 case "range" if ann.init.argss.size == 1 => rt.transform(enclosing, parent, ann.init.argss.head)
