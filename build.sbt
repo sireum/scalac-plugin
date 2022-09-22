@@ -1,4 +1,4 @@
-val scalaVer = "2.13.8"
+val scalaVer = "2.13.9"
 
 val pluginVersion = "4-SNAPSHOT"
 
@@ -14,7 +14,7 @@ lazy val `scalac-plugin-assembly` = (project in file(".")).settings(Seq(
   name := "scalac-plugin-assembly",
   scalaVersion := scalaVer,
   version := pluginVersion,
-  scalacOptions := Seq("-target:jvm-1.8", "-deprecation",
+  scalacOptions := Seq("-release", "8", "-deprecation",
     "-Ydelambdafy:method", "-feature", "-unchecked", "-Xfatal-warnings"),
   assembly / assemblyOption ~= { _.withIncludeScala(false) },
   Compile / assembly / artifact := {
