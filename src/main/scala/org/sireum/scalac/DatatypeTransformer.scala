@@ -81,6 +81,19 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
     val tVars = tparams.map { tp => Type.Name(tp.name.value) }
     val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
     val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats, s => mat.error(tree.pos, s))
+    var varNames: Vector[Term.Name] = Vector()
+    for (stat <- tree.templ.stats) {
+      stat match {
+        case stat: Defn.Val if !stat.mods.exists({
+          case mod"@spec" => true
+          case _ => false
+        }) =>
+          for (Pat.Var(name) <- stat.pats) {
+            varNames = varNames :+ name
+          }
+        case _ =>
+      }
+    }
     if (paramss.nonEmpty && paramss.head.nonEmpty) {
       var vars: Vector[Stat] = Vector()
       var applyParams: Vector[Term.Param] = Vector()
@@ -97,13 +110,14 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
             case _ => false
           })
           val paramVarName = Term.Name("__" + paramName.value)
+          varNames = varNames :+ paramName
           val getterName = Term.Name(s"get${paramName.value.head.toUpper}${paramName.value.substring(1)}")
+          val varName = Term.Name("_" + paramName.value)
           tpeopt match {
             case Some(t"Option[$_]") =>
               val tpe = tpeopt.get
               val Type.Apply(_, List(t)) = tpe
               val bvarName = Term.Name("_b" + paramName.value)
-              val varName = Term.Name("_" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
               vars :+= q"private[this] val $pbvarName: _root_.scala.Boolean = $paramVarName.isEmpty.value"
@@ -114,7 +128,6 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
               val tpe = tpeopt.get
               val Type.Apply(_, List(t)) = tpe
               val bvarName = Term.Name("_b" + paramName.value)
-              val varName = Term.Name("_" + paramName.value)
               val pbvarName = Pat.Var(bvarName)
               val pvarName = Pat.Var(varName)
               vars :+= q"private[this] val $pbvarName: _root_.scala.Boolean = $paramVarName.isEmpty.value"
@@ -125,7 +138,6 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
               val tpe = tpeopt.get
               val Type.Apply(_, List(l, r)) = tpe
               val bvarName = Term.Name("_b" + paramName.value)
-              val varName = Term.Name("_" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
               vars :+= q"private[this] val $pbvarName: _root_.scala.Boolean = $paramVarName.isRight.value"
@@ -136,7 +148,6 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
               val tpe = tpeopt.get
               val Type.Apply(_, List(l, r)) = tpe
               val bvarName = Term.Name("_b" + paramName.value)
-              val varName = Term.Name("_" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
               vars :+= q"private[this] val $pbvarName: _root_.scala.Boolean = $paramVarName.isRight.value"
@@ -144,7 +155,6 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
               vars :+= q"def $paramName: $tpe = if ($bvarName) MEither.Right($varName.asInstanceOf[$r]) else MEither.Left($varName.asInstanceOf[$l])"
               vars :+= q"def $getterName: $tpe = $paramName"
             case _ =>
-              val varName = Term.Name("_" + paramName.value)
               val pvarName = Pat.Var(varName)
               vars :+= q"private[this] val $pvarName = $paramVarName"
               vars :+= q"def $paramName = $varName"
@@ -287,6 +297,26 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
               q"def unapply[..$tparams](o: $tpe): true = { true }")
         mat.objectMembers.getOrElseUpdate(name, MSeq()) ++= Vector(v.syntax, apply.syntax, unapply.syntax)
       }
+    }
+
+    {
+      var equivStats = Vector[Term]()
+      for (varName <- varNames) {
+        equivStats = equivStats :+ q"if (this.$varName =!= o.$varName) return false"
+      }
+      equivStats = equivStats :+ q"return true"
+      val equivCases = Vector(
+        if (tparams.isEmpty) p"case o: $tname => { ..${equivStats.toList} }"
+        else p"case (o: $tname[..$tVars] @unchecked) => { ..${equivStats.toList} }",
+        p"case _ => return false")
+      val equiv =
+        q"""override def ===(o: $sig): $sireumB = {
+              if (this eq o) return true
+              o match {
+                ..case ${equivCases.toList}
+              }
+            }"""
+      mat.classMembers.getOrElseUpdate(name, MSeq()) ++= Vector(equiv.syntax)
     }
 
     mat.adtClasses.add(name)

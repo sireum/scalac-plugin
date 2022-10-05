@@ -80,12 +80,18 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
     val tVars = tparams.map { tp => Type.Name(tp.name.value) }
     val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
     val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats, s => mat.error(tree.pos, s))
+    var varNames: Vector[Term.Name] = Vector()
     var inVars = Vector[Term.Assign]()
     for (stat <- tree.templ.stats) stat match {
       case stat: Defn.Var =>
+        val hasSpec = stat.mods.exists({
+          case mod"@spec" => true
+          case _ => false
+        })
         for (pat <- stat.pats) pat match {
           case pat: Pat.Var =>
             val varName = pat.name
+            if (!hasSpec) varNames = varNames :+ varName
             inVars :+= q"r.$varName = $helperCloneAssign($varName)"
           case _ =>
             mat.error(stat.pos, s"Unsupported var definition form in Slang @record: ${pat.syntax}")
@@ -105,6 +111,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
           val tpeopt = param.decltpe
           val paramVarName = Term.Name("__" + param.name.value)
           val paramName = Term.Name(param.name.value)
+          varNames = varNames :+ paramName
           val getterName = Term.Name(s"get${paramName.value.head.toUpper}${paramName.value.substring(1)}")
           var hidden = false
           var isVar = false
@@ -113,12 +120,12 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
             case mod"varparam" => isVar = true
             case _ => false
           }
+          val varName = Term.Name("_" + paramName.value)
           tpeopt match {
             case Some(t"Option[$_]") =>
               val tpe = tpeopt.get
               val Type.Apply(_, List(t)) = tpe
               val bvarName = Term.Name("_b" + paramName.value)
-              val varName = Term.Name("_" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
               vars :+= q"private[this] var $pbvarName: _root_.scala.Boolean = $paramVarName.isEmpty.value"
@@ -134,7 +141,6 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
               val tpe = tpeopt.get
               val Type.Apply(_, List(t)) = tpe
               val bvarName = Term.Name("_b" + paramName.value)
-              val varName = Term.Name("_" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
               vars :+= q"private[this] var $pbvarName: _root_.scala.Boolean = $paramVarName.isEmpty.value"
@@ -150,7 +156,6 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
               val tpe = tpeopt.get
               val Type.Apply(_, List(l, r)) = tpe
               val bvarName = Term.Name("_b" + paramName.value)
-              val varName = Term.Name("_" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
               vars :+= q"private[this] var $pbvarName: _root_.scala.Boolean = $paramVarName.isRight.value"
@@ -166,7 +171,6 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
               val tpe = tpeopt.get
               val Type.Apply(_, List(l, r)) = tpe
               val bvarName = Term.Name("_b" + paramName.value)
-              val varName = Term.Name("_" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
               vars :+= q"private[this] var $pbvarName: _root_.scala.Boolean = $paramVarName.isRight.value"
@@ -179,7 +183,6 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
                 vars :+= q"def $setterName($paramName: $tpeopt): this.type = { $bvarName = $paramName.isRight.value; $varName = if ($bvarName) $paramVarName.right else $paramVarName.left; this }"
               }
             case _ =>
-              val varName = Term.Name("_" + paramName.value)
               val pvarName = Pat.Var(varName)
               vars :+= q"private[this] var $pvarName = $paramVarName"
               vars :+= q"def $paramName = $varName"
@@ -350,6 +353,27 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
         mat.objectMembers.getOrElseUpdate(name, MSeq()) ++= objectMembers.map(_.syntax)
       }
     }
+
+    {
+      var equivStats = Vector[Term]()
+      for (varName <- varNames) {
+        equivStats = equivStats :+ q"if (this.$varName =!= o.$varName) return false"
+      }
+      equivStats = equivStats :+ q"return true"
+      val equivCases = Vector(
+        if (tparams.isEmpty) p"case o: $tname => { ..${equivStats.toList} }"
+        else p"case (o: $tname[..$tVars] @unchecked) => { ..${equivStats.toList} }",
+        p"case _ => return false")
+      val equiv =
+        q"""override def ===(o: $msig): $sireumB = {
+              if (this eq o) return true
+              o match {
+                ..case ${equivCases.toList}
+              }
+            }"""
+      mat.classMembers.getOrElseUpdate(name, MSeq()) ++= Vector(equiv.syntax)
+    }
+
 
     mat.adtClasses.add(name)
   }
