@@ -34,7 +34,7 @@ import scala.collection.{Map => CMap}
 import scala.collection.mutable.{Map => MMap}
 import scala.reflect.internal.ModifierFlags
 import scala.collection.Seq
-import  scala.reflect.internal.Reporter
+import scala.reflect.internal.Reporter
 
 object SireumPlugin {
 
@@ -90,7 +90,7 @@ class SireumPlugin(override val global: Global) extends Plugin {
       if (msg.startsWith("match may not be exhaustive")) {
         val text = pos.lineContent.trim
         if ((text.startsWith("val") || text.startsWith("var")) && !text.contains("match")) {
-          return scala.reflect.internal.Reporter.Suppress
+          return Reporter.Suppress
         }
       }
       super.filter(pos, msg, severity)
@@ -218,7 +218,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     }
 
     def tmatch(tree: Tree): Tree =
-      q"$tmatchQ($tree)".copyPos(tree)
+      q"$tmatchQ(${transform(tree)})".copyPos(tree)
 
     def pos(tree: Any): Position = tree.asInstanceOf[Tree].pos
 
@@ -240,6 +240,8 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           q"$sireumString($tree)".copyPosT(tree)
         case tree@Apply(Select(Ident(TermName("scala")), TermName("Symbol")), _) => tree
         case tree@Apply(Ident(TermName("StringContext")), _) => tree
+        case tree@q"$_ == $_" => q"$sireumQ.B(${sup(tree)})".copyPosT(tree)
+        case tree@q"$_ != $_" => q"$sireumQ.B(${sup(tree)})".copyPosT(tree)
         case q"$_ trait $_[..$_] extends { ..$_ } with ..$_ { $_ => ..$_ }" =>
           val classTree = tree.asInstanceOf[ClassDef]
           val oldInTrait = inTrait
@@ -273,8 +275,6 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         case tree: ValDef if !(tree.rhs == EmptyTree || isDollar(tree.rhs)) =>
           tree.copy(rhs = assign(tree.rhs)).copyPos(tree)
         case tree: Assign => tree.copy(rhs = assign(tree.rhs)).copyPos(tree)
-        case tree@Apply(Select(Ident(TermName(f)), TermName("update")), l) if !inPat && (f == "up" || f == "pat") =>
-          tree.copy(args = l.dropRight(1) ++ l.takeRight(1).map(transform)).copyPos(tree)
         case q"$expr1(..$exprs2) = $expr" => q"${trans(expr1)}(..${exprs2.map(trans)}) = ${assign(expr)}".copyPos(tree)
         case tree: Match =>
           val oldInNative = inNative
