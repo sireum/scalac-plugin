@@ -237,7 +237,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           global.reporter.error(tree.pos, "[Slang] l\"\"\"...\"\"\" is deprecated, please use Slang Code Contract spec.")
           tree
         case tree@Apply(Select(Apply(Ident(TermName("StringContext")), _), TermName("s")), _) if !inPat =>
-          q"$sireumString($tree)".copyPosT(tree)
+          q"$sireumString(${sup(tree)})".copyPosT(tree)
         case tree@Apply(Select(Ident(TermName("scala")), TermName("Symbol")), _) => tree
         case tree@Apply(Ident(TermName("StringContext")), _) => tree
         case tree@q"$_ == $_" => q"$sireumQ.B(${sup(tree)})".copyPosT(tree)
