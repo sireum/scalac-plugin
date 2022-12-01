@@ -43,9 +43,18 @@ object SireumPlugin {
   def isSireum(global: Global)(unit: global.CompilationUnit): Boolean = {
     var r = unit.source.file.hasExtension("slang") || unit.source.file.hasExtension("logika")
     if (!r) {
-      val cs = unit.source.content
+      val cs = unit.source.content.clone
+      if (unit.source.file.hasExtension("cmd") && cs.startsWith("::/*#!".toCharArray)) {
+        val suffix = "::!#*/"
+        for (i <- 0 until cs.indexOfSlice(suffix.toCharArray) + suffix.length) {
+          cs(i) = ' '
+        }
+      }
       val sb = new java.lang.StringBuilder
-      var i = 0
+      var i = if (unit.source.file.hasExtension("cmd") && cs.startsWith("::/*#!".toCharArray)) {
+        val suffix = "::!#*/"
+        cs.indexOfSlice(suffix.toCharArray) + suffix.length
+      } else 0
       while (i < cs.length && cs(i).isWhitespace) i += 1
       var found = false
       while (i < cs.length && !found) {
@@ -92,6 +101,9 @@ class SireumPlugin(override val global: Global) extends Plugin {
         if ((text.startsWith("val") || text.startsWith("var")) && !text.contains("match")) {
           return Reporter.Suppress
         }
+      }
+      if (pos.source.file.hasExtension("cmd") && msg.contains("a pure expression does nothing in statement position")) {
+        return Reporter.Suppress
       }
       super.filter(pos, msg, severity)
     }
