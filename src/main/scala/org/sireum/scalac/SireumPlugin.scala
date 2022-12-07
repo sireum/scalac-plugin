@@ -102,9 +102,6 @@ class SireumPlugin(override val global: Global) extends Plugin {
           return Reporter.Suppress
         }
       }
-      if (pos.source.file.hasExtension("cmd") && msg.contains("a pure expression does nothing in statement position")) {
-        return Reporter.Suppress
-      }
       super.filter(pos, msg, severity)
     }
 
@@ -124,15 +121,10 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
   import global._
 
-  val importSireum = q"import org.sireum._"
-  val importLogika = q"import org.sireum.logika._"
-
   override val phaseName = "sireum"
-  override val runsRightAfter = Some("parser")
+  override val runsRightAfter: Option[String] = Some("parser")
   override val runsAfter: List[String] = runsRightAfter.toList
   override val runsBefore: List[String] = List[String]("namer")
-
-  val unitCons = Literal(Constant(()))
 
   implicit class CopyPos(val t: Any) {
     def copyPos(tree: Any): Tree = {
@@ -328,7 +320,6 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
                                     var packageName: Vector[String],
                                     var enclosing: Vector[String]) extends TypingTransformer(unit) {
 
-    val untraitMask: global.FlagSet = ~global.Flag.TRAIT
     val mat = new MetaAnnotationTransformer({
       val name = unit.source.file.name
       !name.endsWith(".scala")
@@ -447,7 +438,11 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
             val block = main.rhs.asInstanceOf[Block]
             val cls = block.stats.head.asInstanceOf[ClassDef]
             val argsStmt = fixPos(q"_root_.org.sireum.App.args = _root_.org.sireum.ISZ(args.map(s => _root_.org.sireum.String(s.trim)).toIndexedSeq: _*)".copyPosT(cls.impl))
-            val newImpl = cls.impl.copy(body = cls.impl.body.head :: argsStmt :: cls.impl.body.tail).copyPosT(cls.impl)
+            val rest = cls.impl.body.tail.head match {
+              case Ident(TermName("$colon$colon")) if unit.source.file.hasExtension("cmd") => cls.impl.body.tail.tail
+              case _ => cls.impl.body.tail
+            }
+            val newImpl = cls.impl.copy(body = cls.impl.body.head :: argsStmt :: rest).copyPosT(cls.impl)
             val newCls = cls.copy(impl = newImpl).copyPosT(cls)
             val newMain = main.copy(rhs = block.copy(stats =
               newCls :: block.stats.tail).copyPosT(block)).copyPosT(main.rhs)
