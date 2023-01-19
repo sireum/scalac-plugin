@@ -47,7 +47,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
       return
     }
     val tname = tree.name
-    val tparams = tree.tparams
+    val tparams = tree.tparamClause.values
     val tVars = tparams.map { tp => Type.Name(tp.name.value) }
     val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
     val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats, s => mat.error(tree.pos, s))
@@ -77,7 +77,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
       mat.error(tree.pos, "Slang @datatype classes have to be of the form '@record class <id> ... (...) ... { ... }'.")
       return
     }
-    val (tname, tparams, paramss) = (tree.name, tree.tparams, tree.ctor.paramss)
+    val (tname, tparams, paramss) = (tree.name, tree.tparamClause.values, tree.ctor.paramClauses.map(_.values))
     val tVars = tparams.map { tp => Type.Name(tp.name.value) }
     val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
     val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats, s => mat.error(tree.pos, s))
@@ -114,9 +114,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
           val getterName = Term.Name(s"get${paramName.value.head.toUpper}${paramName.value.substring(1)}")
           val varName = Term.Name("_" + paramName.value)
           tpeopt match {
-            case Some(t"Option[$_]") =>
-              val tpe = tpeopt.get
-              val Type.Apply(_, List(t)) = tpe
+            case Some(tpe@t"Option[$t]") =>
               val bvarName = Term.Name("_b" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
@@ -124,9 +122,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
               vars :+= q"private[this] val $pvarName: $t = $paramVarName.getOrElse(null.asInstanceOf[$t])"
               vars :+= q"def $paramName: $tpe = if ($bvarName) None() else Some($varName)"
               vars :+= q"def $getterName: $tpe = $paramName"
-            case Some(t"MOption[$_]") =>
-              val tpe = tpeopt.get
-              val Type.Apply(_, List(t)) = tpe
+            case Some(tpe@t"MOption[$t]") =>
               val bvarName = Term.Name("_b" + paramName.value)
               val pbvarName = Pat.Var(bvarName)
               val pvarName = Pat.Var(varName)
@@ -134,9 +130,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
               vars :+= q"private[this] val $pvarName: $t = $paramVarName.getOrElse(null.asInstanceOf[$t])"
               vars :+= q"def $paramName: $tpe = if ($bvarName) MNone() else MSome($varName)"
               vars :+= q"def $getterName: $tpe = $paramName"
-            case Some(t"Either[$_, $_]") =>
-              val tpe = tpeopt.get
-              val Type.Apply(_, List(l, r)) = tpe
+            case Some(tpe@t"Either[$l, $r]") =>
               val bvarName = Term.Name("_b" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
@@ -144,9 +138,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
               vars :+= q"private[this] val $pvarName: _root_.scala.Any = if ($bvarName) $paramVarName.right else $paramVarName.left"
               vars :+= q"def $paramName: $tpe = if ($bvarName) Either.Right($varName.asInstanceOf[$r]) else Either.Left($varName.asInstanceOf[$l])"
               vars :+= q"def $getterName: $tpe = $paramName"
-            case Some(t"MEither[$_, $_]") =>
-              val tpe = tpeopt.get
-              val Type.Apply(_, List(l, r)) = tpe
+            case Some(tpe@t"MEither[$l, $r]") =>
               val bvarName = Term.Name("_b" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
@@ -193,7 +185,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
                 p"case _ => false")
             q"override def equals(o: $scalaAny): $scalaBoolean = { if ($$hasEquals) super.equals(o) else if (this eq o.asInstanceOf[$scalaAnyRef]) true else o match { ..case ${eCases.toList} } }"
           }
-        val apply = q"def apply(..${applyParams.toList}): $tpe = { new $tname(..${applyArgs.toList}) }"
+        val apply = q"def apply(..${applyParams.toList}): $tpe = { new ${init"$tname(..${applyArgs.toList})"} }"
         val toString = {
           if (hasString) Vector(q"override def toString: $javaString = { string.value }")
           else {
@@ -228,7 +220,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
       {
         val (apply, unapply) =
           if (tparams.isEmpty)
-            (q"def apply(..${oApplyParams.toList}): $tpe = { new $tname(..${applyArgs.toList}) }",
+            (q"def apply(..${oApplyParams.toList}): $tpe = { new ${init"$tname(..${applyArgs.toList})"} }",
               unapplyTypes.size match {
                 case 0 => q"def unapply(o: $tpe): true = { true }"
                 case 1 => q"def unapply(o: $tpe): $scalaSome[${unapplyTypes.head}] = { $scalaSomeQ(o.${unapplyArgs.head}) }"
@@ -241,7 +233,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
                   q"def unapply(o: $tpe): $scalaSome[(..$unapplyTypess)] = { $scalaSomeQ((..$unapplyArgss)) }"
               })
           else
-            (q"def apply[..$tparams](..${oApplyParams.toList}): $tpe = { new $tname(..${applyArgs.toList}) }",
+            (q"def apply[..$tparams](..${oApplyParams.toList}): $tpe = { new ${init"$tname(..${applyArgs.toList})"} }",
               unapplyTypes.size match {
                 case 0 => q"def unapply[..$tparams](o: $tpe): true = { true }"
                 case 1 => q"def unapply[..$tparams](o: $tpe): $scalaSome[${unapplyTypes.head}] = { $scalaSomeQ(o.${unapplyArgs.head}) }"

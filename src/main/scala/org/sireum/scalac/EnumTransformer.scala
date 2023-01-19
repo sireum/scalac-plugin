@@ -75,7 +75,7 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
           val sym = stat match {
             case Lit.Symbol(s) => s.name
             case Lit.String(s) => s
-            case Term.Apply(Term.Select(Term.Name("scala"), Term.Name("Symbol")), Seq(Lit.String(s))) => s
+            case q"scala.Symbol(${s: Lit.String})" => s.value
             case _ =>
               mat.error(stat.pos, s"Slang @enum can only have symbols/strings for enum element names: ${stat.syntax}")
               return

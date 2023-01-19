@@ -59,7 +59,7 @@ class ExtTransformer(mat: MetaAnnotationTransformer) {
           case stat: Defn.Def if stat.mods.exists { case mod"@spec" => true; case _ => false } =>
             // skip
           case stat: Defn.Def =>
-            if (stat.paramss.size > 1) {
+            if (stat.paramClauses.size > 1) {
               mat.error(stat.pos, s"Slang @ext object methods should only have a list of parameters (instead of several lists of parameters).")
               return
             }
@@ -68,7 +68,7 @@ class ExtTransformer(mat: MetaAnnotationTransformer) {
               return
             }
             val tVars = stat.tparams.map { tp => Type.Name(tp.name.value) }
-            val params = if (stat.paramss.isEmpty) List() else stat.paramss.head.map { p => Term.Name(p.name.value) }
+            val params = if (stat.paramClauses.isEmpty) List() else stat.paramClauses.head.map { p => Term.Name(p.name.value) }
             if (stat.body.structure == dollar) {
             } else stat.body match {
               case q"Contract.Only(..$_)" =>
@@ -78,14 +78,14 @@ class ExtTransformer(mat: MetaAnnotationTransformer) {
             }
             val mname = stat.name
             val newStat = if (tVars.isEmpty)
-              if (stat.paramss.isEmpty) stat.copy(body = q"org.sireum.helper.$$ret($extName.$mname)")
+              if (stat.paramClauses.isEmpty) stat.copy(body = q"org.sireum.helper.$$ret($extName.$mname)")
               else stat.copy(body = q"org.sireum.helper.$$ret($extName.$mname(..$params))")
             else
-              if (stat.paramss.isEmpty) stat.copy(body = q"org.sireum.helper.$$ret($extName.$mname[..$tVars])")
+              if (stat.paramClauses.isEmpty) stat.copy(body = q"org.sireum.helper.$$ret($extName.$mname[..$tVars])")
               else stat.copy(body = q"org.sireum.helper.$$ret($extName.$mname[..$tVars](..$params))")
             mat.objectMemberReplace(name :+ mname.value) = newStat.syntax
           case tree: Defn.Trait =>
-            if (tree.tparams.nonEmpty ||
+            if (tree.tparamClause.values.nonEmpty ||
               tree.templ.early.nonEmpty ||
               tree.templ.inits.nonEmpty ||
               tree.templ.self.decltpe.nonEmpty ||

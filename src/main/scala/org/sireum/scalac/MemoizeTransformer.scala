@@ -41,7 +41,7 @@ class MemoizeTransformer(mat: MetaAnnotationTransformer) {
             return
         }
 
-        if (tree.paramss.isEmpty) {
+        if (tree.paramClauses.isEmpty) {
           if (tree.tparams.nonEmpty) {
             mat.error(tree.pos, s"Slang @memoize parameter-less methods should not have type parameters.")
             return
@@ -52,7 +52,7 @@ class MemoizeTransformer(mat: MetaAnnotationTransformer) {
           return
         }
 
-        if (tree.paramss.size > 1 || tree.paramss.head.isEmpty) {
+        if (tree.paramClauses.size > 1 || tree.paramClauses.head.isEmpty) {
           mat.error(tree.pos, "Slang @memoize methods should only have at most one list of non-empty parameters.")
           return
         }
@@ -67,7 +67,7 @@ class MemoizeTransformer(mat: MetaAnnotationTransformer) {
         var params = Vector[Term.Name]()
         var hiddenParamTypes = Vector[Type]()
         var hiddenParams = Vector[Term.Name]()
-        for (p <- tree.paramss.head) {
+        for (p <- tree.paramClauses.head.values) {
           val pname = Term.Name(p.name.value)
           p.decltpe match {
             case Some(tpe) =>
@@ -136,12 +136,12 @@ class MemoizeTransformer(mat: MetaAnnotationTransformer) {
         }
         val newName = Term.Name("_" + tree.name.value)
         val newStat = tree.copy(name = newName, body = body)
-        val fnType =
-          if (allParamTypes.size == 1) t"${allParamTypes.head} => $returnType"
-          else t"(..${allParamTypes.toList}) => $returnType"
-        rwMap(name :+ tree.name.value) = Defn.Val(List(Mod.Lazy()), List[Pat](Pat.Var(Term.Name(tree.name.value))), Some(fnType),
-          q"{ ..${hiddenVars ++ List(cacheVar, newStat, q"$newName _")} }").syntax
+        val r = s"lazy val ${tree.name.value}: (${allParamTypes.mkString(", ")}) => ${returnType.syntax} = ${
+          q"{ ..${hiddenVars ++ List(cacheVar, newStat, q"$newName _")} }".syntax
+        }"
+        rwMap(name :+ tree.name.value) = r
       case _ => mat.error(tree.pos, "Slang @memoize can only be used on method definitions.")
     }
   }
 }
+

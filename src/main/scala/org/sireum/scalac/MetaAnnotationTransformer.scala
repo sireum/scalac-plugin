@@ -116,14 +116,14 @@ object MetaAnnotationTransformer {
     sb.toString
   }
 
-  def extractInt(tree: Any): Option[BigInt] = tree match {
+  def extractInt(tree: Tree): Option[BigInt] = tree match {
     case Lit.Int(n) => Some(n)
     case Lit.Long(n) => Some(n)
-    case Term.Apply(Term.Name("Z"), Seq(Lit.Int(n))) => Some(n)
-    case Term.Apply(Term.Name("Z"), Seq(Lit.Long(n))) => Some(n)
-    case Term.Apply(Term.Name("Z"), Seq(Lit.String(n))) => Some(BigInt(normNum(n)))
-    case Term.Apply(Term.Select(Term.Apply(Term.Name("StringContext"), Seq(Lit.String(s))), Term.Name("z")), Seq()) =>
-      try Some(BigInt(normNum(s))) catch {
+    case q"Z(${n: Lit.Int})" => Some(n.value)
+    case q"Z(${n: Lit.Long})" => Some(n.value)
+    case q"Z(${n: Lit.String})" => Some(BigInt(normNum(n.value)))
+    case q"StringContext(${s: Lit.String}).z()" =>
+      try Some(BigInt(normNum(s.value))) catch {
         case _: Throwable => None
       }
     case tree: Term.Interpolate if tree.prefix.value == "z" && tree.args.isEmpty && tree.parts.size == 1 =>
@@ -217,11 +217,11 @@ class MetaAnnotationTransformer(val isScript: Boolean,
             case "@mut" => // skip
             case annSyntax =>
               ann.init.tpe.syntax match {
-                case "range" if ann.init.argss.size == 1 => rt.transform(enclosing, parent, ann.init.argss.head)
-                case "bits" if ann.init.argss.size == 1 => bt.transform(enclosing, parent, ann.init.argss.head)
-                case "ext" if ann.init.argss.size == 1 => ext.transform (enclosing, parent, ann.init.argss.head)
-                case "ext" if ann.init.argss.isEmpty => ext.transform (enclosing, parent, List())
-                case "just" if ann.init.argss.size <= 1 => // skip
+                case "range" if ann.init.argClauses.size == 1 => rt.transform(enclosing, parent, ann.init.argClauses.head.values)
+                case "bits" if ann.init.argClauses.size == 1 => bt.transform(enclosing, parent, ann.init.argClauses.head.values)
+                case "ext" if ann.init.argClauses.size == 1 => ext.transform (enclosing, parent, ann.init.argClauses.head.values)
+                case "ext" if ann.init.argClauses.isEmpty => ext.transform (enclosing, parent, List())
+                case "just" if ann.init.argClauses.size <= 1 => // skip
                 case _ => error(tree.pos, s"Invalid annotation $annSyntax.")
               }
           }

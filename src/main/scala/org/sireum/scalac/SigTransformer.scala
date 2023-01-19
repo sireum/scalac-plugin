@@ -42,7 +42,7 @@ class SigTransformer(mat: MetaAnnotationTransformer) {
           return
         }
         val tname = tree.name
-        val tparams = tree.tparams
+        val tparams = tree.tparamClause.values
         val tVars = tparams.map { tp => Type.Name(tp.name.value) }
         val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
         val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats, s => mat.error(tree.pos, s))

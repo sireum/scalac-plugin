@@ -46,7 +46,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
       return
     }
     val tname = tree.name
-    val tparams = tree.tparams
+    val tparams = tree.tparamClause.values
     val tVars = tparams.map { tp => Type.Name(tp.name.value) }
     val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
     val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats, s => mat.error(tree.pos, s))
@@ -76,7 +76,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
       mat.error(tree.pos, "Slang @record classes have to be of the form '@record class <id> ... (...) ... { ... }'.")
       return
     }
-    val (tname, tparams, paramss) = (tree.name, tree.tparams, tree.ctor.paramss)
+    val (tname, tparams, paramss) = (tree.name, tree.tparamClause.values, tree.ctor.paramClauses.map(_.values))
     val tVars = tparams.map { tp => Type.Name(tp.name.value) }
     val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
     val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats, s => mat.error(tree.pos, s))
@@ -122,9 +122,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
           }
           val varName = Term.Name("_" + paramName.value)
           tpeopt match {
-            case Some(t"Option[$_]") =>
-              val tpe = tpeopt.get
-              val Type.Apply(_, List(t)) = tpe
+            case Some(tpe@t"Option[$t]") =>
               val bvarName = Term.Name("_b" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
@@ -137,9 +135,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
                 val setterName = Term.Name(s"set${paramName.value.head.toUpper}${paramName.value.substring(1)}")
                 vars :+= q"def $setterName($paramName: $tpeopt): this.type = { $bvarName = $paramName.isEmpty.value; $varName = $paramName.getOrElse(null.asInstanceOf[$t]); this }"
               }
-            case Some(t"MOption[$_]") =>
-              val tpe = tpeopt.get
-              val Type.Apply(_, List(t)) = tpe
+            case Some(tpe@t"MOption[$t]") =>
               val bvarName = Term.Name("_b" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
@@ -152,9 +148,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
                 val setterName = Term.Name(s"set${paramName.value.head.toUpper}${paramName.value.substring(1)}")
                 vars :+= q"def $setterName($paramName: $tpeopt): this.type = { $bvarName = $paramName.isEmpty.value; $varName = $paramName.getOrElse(null.asInstanceOf[$t]); this }"
               }
-            case Some(t"Either[$_, $_]") =>
-              val tpe = tpeopt.get
-              val Type.Apply(_, List(l, r)) = tpe
+            case Some(tpe@t"Either[$l, $r]") =>
               val bvarName = Term.Name("_b" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
@@ -167,9 +161,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
                 val setterName = Term.Name(s"set${paramName.value.head.toUpper}${paramName.value.substring(1)}")
                 vars :+= q"def $setterName($paramName: $tpeopt): this.type = { $bvarName = $paramName.isRight.value; $varName = if ($bvarName) $paramVarName.right else $paramVarName.left; this }"
               }
-            case Some(t"MEither[$_, $_]") =>
-              val tpe = tpeopt.get
-              val Type.Apply(_, List(l, r)) = tpe
+            case Some(tpe@t"MEither[$l, $r]") =>
               val bvarName = Term.Name("_b" + paramName.value)
               val pvarName = Pat.Var(varName)
               val pbvarName = Pat.Var(bvarName)
@@ -208,7 +200,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
 
       {
         val clone = {
-          val cloneNew = q"val r: $tpe = { new $tname(..${applyArgs.toList.map(arg => q"$helperCloneAssign(this.$arg)")}) }"
+          val cloneNew = q"val r: $tpe = { new ${init"$tname(..${applyArgs.toList.map(arg => q"$helperCloneAssign(this.$arg)")})" } }"
           q"override def $$clone: $tpe = { ..${(cloneNew +: inVars :+ q"r").toList} }"
         }
 
@@ -233,7 +225,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
                 p"case _ => false")
             q"override def equals(o: $scalaAny): $scalaBoolean = { if ($$hasEquals) super.equals(o) else if (this eq o.asInstanceOf[$scalaAnyRef]) true else o match { ..case ${eCases.toList} } }"
           }
-        val apply = q"def apply(..${applyParams.toList}): $tpe = { new $tname(..${applyArgs.toList.map(arg => q"$helperAssign($arg)")}) }"
+        val apply = q"def apply(..${applyParams.toList}): $tpe = { new ${init"$tname(..${applyArgs.toList.map(arg => q"$helperAssign($arg)")})"} }"
         val toString = {
           if (hasString) Vector(q"override def toString: $javaString = { string.value }")
           else {
@@ -269,7 +261,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
       {
         val (apply, unapply) =
           if (tparams.isEmpty)
-            (q"def apply(..${oApplyParams.toList}): $tpe = { new $tname(..${applyArgs.toList.map(arg => q"$helperAssign($arg)")}) }",
+            (q"def apply(..${oApplyParams.toList}): $tpe = { new ${init"$tname(..${applyArgs.toList.map(arg => q"$helperAssign($arg)")})"} }",
               unapplyTypes.size match {
                 case 0 => q"def unapply(o: $tpe): true = { true }"
                 case 1 => q"def unapply(o: $tpe): $scalaSome[${unapplyTypes.head}] = { $scalaSomeQ($helperClone(o.${unapplyArgs.head})) }"
@@ -282,7 +274,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
                   q"def unapply(o: $tpe): $scalaSome[(..$unapplyTypess)] = { $scalaSomeQ((..$unapplyArgss)) }"
               })
           else
-            (q"def apply[..$tparams](..${oApplyParams.toList}): $tpe = { new $tname(..${applyArgs.toList}) }",
+            (q"def apply[..$tparams](..${oApplyParams.toList}): $tpe = { new ${init"$tname(..${applyArgs.toList})"} }",
               unapplyTypes.size match {
                 case 0 => q"def unapply[..$tparams](o: $tpe): true = { true }"
                 case 1 => q"def unapply[..$tparams](o: $tpe): $scalaSome[${unapplyTypes.head}] = { $scalaSomeQ($helperClone(o.${unapplyArgs.head})) }"
