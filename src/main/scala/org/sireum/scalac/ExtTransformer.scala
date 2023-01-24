@@ -95,7 +95,7 @@ class ExtTransformer(mat: MetaAnnotationTransformer) {
             mat.objectMemberReplace(name :+ tree.name.value) = q"type ${tree.name} = $extName.${tree.name}".syntax
           case stat: Defn.Val =>
             // skip
-          case stat: Defn.Var if stat.rhs.nonEmpty =>
+          case stat: Defn.Var if stat.body.is[Term.Placeholder] =>
             // skip
           case _ =>
             mat.error(stat.pos, s"Invalid Slang @ext object member: ${stat.syntax}.")
