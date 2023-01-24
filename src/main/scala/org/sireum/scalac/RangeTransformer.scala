@@ -142,6 +142,7 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
                   @inline def hasMax: $scalaBoolean = $termName.hasMax
                   @inline def ===(that: $typeName): $sireumB = value == that.value
                   @inline def =!=(that: $typeName): $sireumB = value != that.value
+                  @inline def toZ: $sireumZ = toBigInt
                   def make(v: $sireumZ): $typeName = $termName(v)
                   def boxer = $boxerTerm
                   override def equals(that: $scalaAny): $scalaBoolean =
@@ -163,6 +164,7 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
                   @inline def hasMax: $scalaBoolean = $termName.hasMax
                   @inline def ===(that: $typeName): $sireumB = value == that.value
                   @inline def =!=(that: $typeName): $sireumB = value != that.value
+                  @inline def toZ: $sireumZ = toBigInt
                   def make(v: $sireumZ): $typeName = $termName(v)
                   def boxer = $boxerTerm
                 }""".syntax
