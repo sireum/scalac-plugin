@@ -310,6 +310,14 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           } else {
             tree.copy(expr = ret(tree.expr)).copyPos(tree)
           }
+        case tree: TypeDef =>
+          for (ann <- tree.mods.annotations) {
+            ann match {
+              case q"new index()" => return tree.copy(rhs = TypeBoundsTree(EmptyTree, tq"org.sireum.ZLike[${tree.name}]")).copyPos(tree)
+              case _ =>
+            }
+          }
+          return super.transform(tree)
         case _ => super.transform(tree)
       }
       r

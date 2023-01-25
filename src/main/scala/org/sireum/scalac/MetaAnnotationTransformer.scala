@@ -215,6 +215,7 @@ class MetaAnnotationTransformer(val isScript: Boolean,
             case "@spec" => // skip
             case "@imm" => // skip
             case "@mut" => // skip
+            case "@index" => // skip
             case annSyntax =>
               ann.init.tpe.syntax match {
                 case "range" if ann.init.argClauses.size == 1 => rt.transform(enclosing, parent, ann.init.argClauses.head.values)
