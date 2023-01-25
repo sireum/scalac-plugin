@@ -632,7 +632,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           fw.close()
         }
       }
-      unit.body = new IndexTransformer(unit).transform(unit.body)
+      //unit.body = new IndexTransformer(unit).transform(unit.body)
     }
   }
 }
