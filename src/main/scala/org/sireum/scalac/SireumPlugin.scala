@@ -310,14 +310,6 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           } else {
             tree.copy(expr = ret(tree.expr)).copyPos(tree)
           }
-        case tree: TypeDef =>
-          for (ann <- tree.mods.annotations) {
-            ann match {
-              case q"new index()" => return tree.copy(rhs = TypeBoundsTree(EmptyTree, tq"org.sireum.ZLike[${tree.name}]")).copyPos(tree)
-              case _ =>
-            }
-          }
-          return super.transform(tree)
         case _ => super.transform(tree)
       }
       r
@@ -599,6 +591,23 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
     }
   }
 
+  final class IndexTransformer(unit: CompilationUnit) extends TypingTransformer(unit) {
+
+    override def transform(tree: Tree): Tree = {
+      tree match {
+        case tree: TypeDef =>
+          for (ann <- tree.mods.annotations) {
+            ann match {
+              case q"new index()" => return tree.copy(rhs = TypeBoundsTree(EmptyTree, tq"org.sireum.ZLike[${tree.name}]")).copyPos(tree)
+              case _ =>
+            }
+          }
+        case _ =>
+      }
+      super.transform(tree)
+    }
+  }
+
   def newPhase(prev: Phase): StdPhase = new StdPhase(prev) {
     def apply(unit: CompilationUnit): Unit = {
       if (unit.source.content.indexOfSlice(Array('#', '#', '#')) >= 0) {
@@ -606,8 +615,8 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
         unit.body = cct.transform(unit.body)
       }
       if (SireumPlugin.isSireum(global)(unit)) {
-        val at = new AnnotationTransformer(unit, Vector(), Vector())
         val st = new SemanticsTransformer(unit, inNative = false, inPat = false, inTrait = false)
+        val at = new AnnotationTransformer(unit, Vector(), Vector())
         val b1 = st.transform(unit.body)
         val b2 = at.transform(b1)
         val newBody = fixPos(b2)
@@ -623,6 +632,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           fw.close()
         }
       }
+      unit.body = new IndexTransformer(unit).transform(unit.body)
     }
   }
 }
