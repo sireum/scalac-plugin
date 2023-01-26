@@ -144,7 +144,7 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
         val minErrorMessage = Lit.String(s" is less than $cname.Min ($min)")
         val maxErrorMessage = Lit.String(s" is greater than $cname.Max ($max)")
 
-        val (valueTypeName, bvType, boxerType, minLit, maxLit, indexLit, randomSeed, apply, intObject, longObject, bigIntObject) = width match {
+        val (valueTypeName, bvType, boxerType, minLit, maxLit, indexLit, apply, intObject, longObject, bigIntObject) = width match {
           case 8 => (
             scalaByte,
             init"_root_.org.sireum.Z.BV.Byte[$typeName]",
@@ -152,7 +152,6 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
             q"(${Lit.Int(min.toInt)}).toByte",
             q"(${Lit.Int(max.toInt)}).toByte",
             q"(${Lit.Int(index.toInt)}).toByte",
-            q"new $ctorName((n + zMin).toBigInt.toByte)",
             q"""def apply(n: $sireumZ): $typeName = n match {
               case n: _root_.org.sireum.Z.MP.Long =>
                 if (!isWrapped) {
@@ -188,7 +187,6 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
             q"(${Lit.Int(min.toInt)}).toShort",
             q"(${Lit.Int(max.toInt)}).toShort",
             q"(${Lit.Int(index.toInt)}).toShort",
-            q"new $ctorName((n + zMin).toBigInt.toShort)",
             q"""def apply(n: $sireumZ): $typeName = n match {
               case n: _root_.org.sireum.Z.MP.Long =>
                 if (!isWrapped) {
@@ -224,7 +222,6 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
             Lit.Int(min.toInt),
             Lit.Int(max.toInt),
             Lit.Int(index.toInt),
-            q"new $ctorName((n + zMin).toBigInt.toInt)",
             q"""def apply(n: $sireumZ): $typeName = n match {
               case n: _root_.org.sireum.Z.MP.Long =>
                 if (!isWrapped) {
@@ -264,7 +261,6 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
             Lit.Long(min.toLong),
             Lit.Long(max.toLong),
             Lit.Long(index.toLong),
-            q"new $ctorName((n + zMin).toBigInt.toLong)",
             q"""def apply(n: $sireumZ): $typeName = n match {
               case n: _root_.org.sireum.Z.MP.Long =>
                 if (!isWrapped) {
@@ -356,18 +352,11 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
           q"val isBitVector: $scalaBoolean = true",
           q"val hasMin: $scalaBoolean = true",
           q"val hasMax: $scalaBoolean = true",
-          q"""def random: $typeName = {
-              val zMin = $sireumZQ(Min.toBigInt)
-              val d = $sireumZQ(Max.toBigInt) - zMin + $sireumZQ.MP.one
-              val n = $sireumZQ.random % d
-              $randomSeed
-            }""",
-          q"""def randomSeed(seed: $sireumZ): $typeName = {
-              val zMin = $sireumZQ(Min.toBigInt)
-              val d = $sireumZQ(Max.toBigInt) - zMin + $sireumZQ.MP.one
-              val n = $sireumZQ.randomSeed(seed) % d
-              $randomSeed
-            }""",
+          q"def fromZ(n: $sireumZ): $typeName = apply(n)",
+          q"def random: $typeName = fromZ($sireumZQ.randomBetween(Min.toZ, Max.toZ))",
+          q"def randomBetween(min: $typeName, max: $typeName): $typeName = fromZ($sireumZQ.randomBetween(min.toZ, max.toZ))",
+          q"def randomSeed(seed: $sireumZ): $typeName = fromZ($sireumZQ.randomSeedBetween(seed, Min.toZ, Max.toZ))",
+          q"def randomSeedBetween(seed: $sireumZ, min: $typeName, max: $typeName): $typeName = fromZ($sireumZQ.randomSeedBetween(seed, min.toZ, max.toZ))",
           q"def apply(n: $scalaInt): $typeName = Int(n)",
           q"def apply(n: $scalaLong): $typeName = Long(n)",
           apply,

@@ -179,29 +179,32 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
           q"val isBitVector: $scalaBoolean = false",
           q"val hasMin: $scalaBoolean = ${Lit.Boolean(minOpt.nonEmpty)}",
           q"val hasMax: $scalaBoolean = ${Lit.Boolean(maxOpt.nonEmpty)}",
+          q"def fromZ(n: $sireumZ): $typeName = apply(n)",
           q"""def BitWidth: $scalaInt = halt(s"Unsupported $$Name operation 'BitWidth'")""",
           q"""def random: $typeName = if (hasMax && hasMin) {
-                val d = Max.value - Min.value + $sireumZQ.MP.one
-                val n = $sireumZQ.random % d
-                $termName(n + Min.value)
+                fromZ($sireumZQ.randomBetween(Min.toZ, Max.toZ))
               } else if (hasMax) {
                 val n = $sireumZQ.random
-                $termName(if (n > Max.value) Max.value - n else n)
-              } else {
+                fromZ(if (n > Max.toZ) Max.toZ - n else n)
+              } else if (hasMin) {
                 val n = $sireumZQ.random
-                $termName(if (n < Min.value) Min.value + n else n)
+                fromZ(if (n < Min.toZ) Min.toZ + n else n)
+              } else {
+                fromZ($sireumZQ.random)
               }""",
+          q"def randomBetween(min: $typeName, max: $typeName): $typeName = fromZ($sireumZQ.randomBetween(min.toZ, max.toZ))",
           q"""def randomSeed(seed: $sireumZ): $typeName = if (hasMax && hasMin) {
-                val d = Max.value - Min.value + $sireumZQ.MP.one
-                val n = $sireumZQ.randomSeed(seed) % d
-                $termName(n + Min.value)
+                fromZ($sireumZQ.randomSeedBetween(seed, Min.toZ, Max.toZ))
               } else if (hasMax) {
                 val n = $sireumZQ.randomSeed(seed)
-                $termName(if (n > Max.value) Max.value - n else n)
-              } else {
+                fromZ(if (n > Max.toZ) Max.toZ - n else n)
+              } else if (hasMin) {
                 val n = $sireumZQ.randomSeed(seed)
-                $termName(if (n < Min.value) Min.value + n else n)
+                fromZ(if (n < Min.toZ) Min.toZ + n else n)
+              } else {
+                fromZ($sireumZQ.randomSeed(seed))
               }""",
+          q"def randomSeedBetween(seed: $sireumZ, min: $typeName, max: $typeName): $typeName = fromZ($sireumZQ.randomSeedBetween(seed, min.toZ, max.toZ))",
           q"""private def check(v: $sireumZ): $sireumZ = {
                 if (hasMin) assert(Min.value <= v, v.toString + $minErrorMessage)
                 if (hasMax) assert(v <= Max.value, v.toString + $maxErrorMessage)
