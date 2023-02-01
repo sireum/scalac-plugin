@@ -57,17 +57,19 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
                 final def compare(that: Type): $scalaInt = this.ordinal.compareTo(that.ordinal)
 
                 final def string: $sireumString = toString
-              }
-           """,
+              }""",
           q"""final def byName(name: $sireumString): $sireumOption[Type] =
                 elements.elements.find(_.name == name) match {
                   case _root_.scala.Some(v) => $sireumSomeQ(v)
                   case _ => $sireumNoneQ()
-              }
-           """,
+              }""",
           q"""final def byOrdinal(n: $sireumZ): $sireumOption[Type] =
-                if ($sireumZQ(0) <= n && n < elements.size) $sireumSomeQ(elements(n)) else $sireumNoneQ()
-           """
+                if ($sireumZQ(0) <= n && n < elements.size) $sireumSomeQ(elements(n)) else $sireumNoneQ()""",
+          q"final def random: Type = elements($sireumZQ.randomBetween(0, elements.size - 1))",
+          q"final def randomSeed(seed: $sireumZ): Type = elements($sireumZQ.randomSeedBetween(seed, 0, elements.size - 1))",
+          q"final def randomBetween(min: Type, max: Type): Type = elements($sireumZQ.randomBetween(min.ordinal, max.ordinal))",
+          q"""final def randomSeedBetween(seed: $sireumZ, min: Type, max: Type): Type =
+                elements($sireumZQ.randomSeedBetween(seed, min.ordinal, max.ordinal))"""
         )
         var elements = Vector[Term.Name]()
         var i = 0
