@@ -200,7 +200,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
 
       {
         val clone = {
-          val cloneNew = q"val r: $tpe = { new ${init"$tname(..${applyArgs.toList.map(arg => q"$helperCloneAssign(this.$arg)")})" } }"
+          val cloneNew = q"""val r: $tpe = { if (!$$clonable) halt(s"$$this cannot be assigned to a variable"); new ${init"$tname(..${applyArgs.toList.map(arg => q"$helperCloneAssign(this.$arg)")})" } }"""
           q"override def $$clone: $tpe = { ..${(cloneNew +: inVars :+ q"r").toList} }"
         }
 
