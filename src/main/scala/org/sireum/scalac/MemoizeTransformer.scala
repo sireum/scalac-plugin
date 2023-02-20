@@ -42,7 +42,7 @@ class MemoizeTransformer(mat: MetaAnnotationTransformer) {
         }
 
         if (tree.paramClauses.isEmpty) {
-          if (tree.tparams.nonEmpty) {
+          if ((for (pcg <- tree.paramClauseGroups; tp <- pcg.tparamClause.values) yield tp).nonEmpty) {
             mat.error(tree.pos, s"Slang @memoize parameter-less methods should not have type parameters.")
             return
           }

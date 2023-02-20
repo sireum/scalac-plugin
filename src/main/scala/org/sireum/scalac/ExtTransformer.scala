@@ -67,7 +67,7 @@ class ExtTransformer(mat: MetaAnnotationTransformer) {
               mat.error(stat.pos, s"Slang @ext object methods should be explicitly typed.")
               return
             }
-            val tVars = stat.tparams.map { tp => Type.Name(tp.name.value) }
+            val tVars = for (pcg <- stat.paramClauseGroups; tp <- pcg.tparamClause.values) yield Type.Name(tp.name.value)
             val params = if (stat.paramClauses.isEmpty) List() else stat.paramClauses.head.map { p => Term.Name(p.name.value) }
             if (stat.body.structure == dollar) {
             } else stat.body match {
