@@ -185,10 +185,10 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
                 fromZ($sireumZQ.randomBetween(Min.toZ, Max.toZ))
               } else if (hasMax) {
                 val n = $sireumZQ.random
-                fromZ(if (n > Max.toZ) Max.toZ - n else n)
+                fromZ(if (n > Max.toZ) Max.toZ - (if (n < 0) -n else n) else n)
               } else if (hasMin) {
                 val n = $sireumZQ.random
-                fromZ(if (n < Min.toZ) Min.toZ + n else n)
+                fromZ(if (n < Min.toZ) Min.toZ + (if (n < 0) -n else n) else n)
               } else {
                 fromZ($sireumZQ.random)
               }""",
@@ -197,10 +197,10 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
                 fromZ($sireumZQ.randomSeedBetween(seed, Min.toZ, Max.toZ))
               } else if (hasMax) {
                 val n = $sireumZQ.randomSeed(seed)
-                fromZ(if (n > Max.toZ) Max.toZ - n else n)
+                fromZ(if (n > Max.toZ) Max.toZ - (if (n < 0) -n else n) else n)
               } else if (hasMin) {
                 val n = $sireumZQ.randomSeed(seed)
-                fromZ(if (n < Min.toZ) Min.toZ + n else n)
+                fromZ(if (n > Max.toZ) Max.toZ - (if (n < 0) -n else n) else n)
               } else {
                 fromZ($sireumZQ.randomSeed(seed))
               }""",
