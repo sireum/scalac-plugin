@@ -200,7 +200,7 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
                 fromZ(if (n > Max.toZ) Max.toZ - (if (n < 0) -n else n) else n)
               } else if (hasMin) {
                 val n = $sireumZQ.randomSeed(seed)
-                fromZ(if (n > Max.toZ) Max.toZ - (if (n < 0) -n else n) else n)
+                fromZ(if (n < Min.toZ) Min.toZ + (if (n < 0) -n else n) else n)
               } else {
                 fromZ($sireumZQ.randomSeed(seed))
               }""",
