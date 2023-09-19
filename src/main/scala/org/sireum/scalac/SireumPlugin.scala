@@ -35,6 +35,7 @@ import scala.collection.mutable.{Map => MMap}
 import scala.reflect.internal.ModifierFlags
 import scala.collection.Seq
 import scala.reflect.internal.Reporter
+import scala.reflect.internal.util.CodeAction
 
 object SireumPlugin {
 
@@ -92,6 +93,7 @@ class SireumPlugin(override val global: Global) extends Plugin {
     val suppressedWarnings: Set[String] = Set(
       "symbol literal is deprecated",
       "The outer reference in this type test cannot be checked at run time",
+      "-Wconf:msg=legacy-binding:s"
     )
 
     override def filter(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity): Int = {
@@ -105,7 +107,7 @@ class SireumPlugin(override val global: Global) extends Plugin {
       super.filter(pos, msg, severity)
     }
 
-    override def doReport(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity): Unit = {
+    override def doReport(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity, actions: List[CodeAction]): Unit = {
       severity match {
         case INFO => originalReporter.echo(pos, msg)
         case WARNING => originalReporter.warning(pos, msg)

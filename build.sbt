@@ -1,4 +1,4 @@
-val scalaVer = "2.13.11"
+val scalaVer = "2.13.12"
 
 val pluginVersion = "4-SNAPSHOT"
 
