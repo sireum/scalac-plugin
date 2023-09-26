@@ -109,9 +109,9 @@ class SireumPlugin(override val global: Global) extends Plugin {
 
     override def doReport(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity, actions: List[CodeAction]): Unit = {
       severity match {
-        case INFO => originalReporter.echo(pos, msg)
-        case WARNING => originalReporter.warning(pos, msg)
-        case _ => originalReporter.error(pos, msg)
+        case INFO => originalReporter.echo(pos, msg, scala.Nil)
+        case WARNING => originalReporter.warning(pos, msg, scala.Nil)
+        case _ => originalReporter.error(pos, msg, scala.Nil)
       }
     }
 
