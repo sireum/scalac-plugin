@@ -39,7 +39,7 @@ import scala.reflect.internal.util.CodeAction
 
 object SireumPlugin {
 
-  val implicationOps: Set[String] = Set("->:", "-->:", "imply_:", "simply_:")
+  val implicationOps: Set[String] = Set("->:", "-->:", "__>:", "___>:")
 
   def isSireum(global: Global)(unit: global.CompilationUnit): Boolean = {
     var r = unit.source.file.hasExtension("slang") || unit.source.file.hasExtension("logika")
