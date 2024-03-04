@@ -79,6 +79,35 @@ object SireumPlugin {
   }
 }
 
+class SireumReporter(val originalReporter: scala.tools.nsc.reporters.FilteringReporter) extends scala.tools.nsc.reporters.FilteringReporter {
+  val suppressedWarnings: Set[String] = Set(
+    "symbol literal is deprecated",
+    "The outer reference in this type test cannot be checked at run time",
+    "-Wconf:msg=legacy-binding:s"
+  )
+
+  override def filter(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity): Int = {
+    if (suppressedWarnings.exists(m => msg.contains(m))) return Reporter.Suppress
+    if (msg.startsWith("match may not be exhaustive")) {
+      val text = pos.lineContent.trim
+      if ((text.startsWith("val") || text.startsWith("var")) && !text.contains("match")) {
+        return Reporter.Suppress
+      }
+    }
+    super.filter(pos, msg, severity)
+  }
+
+  override def doReport(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity, actions: List[CodeAction]): Unit = {
+    severity match {
+      case INFO => originalReporter.echo(pos, msg, scala.Nil)
+      case WARNING => originalReporter.warning(pos, msg, scala.Nil)
+      case _ => originalReporter.error(pos, msg, scala.Nil)
+    }
+  }
+
+  override def settings: scala.tools.nsc.Settings = originalReporter.settings
+}
+
 class SireumPlugin(override val global: Global) extends Plugin {
   override val name = "sireum"
   override val description = "Compiler plugin for the Sireum Scala subset."
@@ -88,35 +117,7 @@ class SireumPlugin(override val global: Global) extends Plugin {
 
   val originalReporter: scala.tools.nsc.reporters.FilteringReporter = global.reporter
 
-  global.reporter = new scala.tools.nsc.reporters.FilteringReporter {
-
-    val suppressedWarnings: Set[String] = Set(
-      "symbol literal is deprecated",
-      "The outer reference in this type test cannot be checked at run time",
-      "-Wconf:msg=legacy-binding:s"
-    )
-
-    override def filter(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity): Int = {
-      if (suppressedWarnings.exists(m => msg.contains(m))) return Reporter.Suppress
-      if (msg.startsWith("match may not be exhaustive")) {
-        val text = pos.lineContent.trim
-        if ((text.startsWith("val") || text.startsWith("var")) && !text.contains("match")) {
-          return Reporter.Suppress
-        }
-      }
-      super.filter(pos, msg, severity)
-    }
-
-    override def doReport(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity, actions: List[CodeAction]): Unit = {
-      severity match {
-        case INFO => originalReporter.echo(pos, msg, scala.Nil)
-        case WARNING => originalReporter.warning(pos, msg, scala.Nil)
-        case _ => originalReporter.error(pos, msg, scala.Nil)
-      }
-    }
-
-    override def settings: scala.tools.nsc.Settings = originalReporter.settings
-  }
+  global.reporter = new SireumReporter(originalReporter)
 }
 
 final class SireumComponent(val global: Global) extends PluginComponent with TypingTransformers {
@@ -312,6 +313,7 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
           } else {
             tree.copy(expr = ret(tree.expr)).copyPos(tree)
           }
+        case q"RS(..$_)" => q"RS()".copyPos(tree)
         case _ => super.transform(tree)
       }
       r
