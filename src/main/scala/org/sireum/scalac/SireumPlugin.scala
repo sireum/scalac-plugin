@@ -131,15 +131,23 @@ final class SireumComponent(val global: Global) extends PluginComponent with Typ
 
   implicit class CopyPos(val t: Any) {
     def copyPos(tree: Any): Tree = {
-      val t2 = t.asInstanceOf[Tree]
-      t2.pos = tree.asInstanceOf[Tree].pos
-      t2
+      t match {
+        case EmptyTree => t.asInstanceOf[Tree]
+        case _ =>
+          val t2 = t.asInstanceOf[Tree]
+          t2.pos = tree.asInstanceOf[Tree].pos
+          t2
+      }
     }
 
     def copyPosT[T <: Tree](tree: T): T = {
-      val t2 = t.asInstanceOf[T]
-      t2.pos = tree.pos
-      t2
+      t match {
+        case EmptyTree => t.asInstanceOf[T]
+        case _ =>
+          val t2 = t.asInstanceOf[T]
+          t2.pos = tree.pos
+          t2
+      }
     }
   }
 
