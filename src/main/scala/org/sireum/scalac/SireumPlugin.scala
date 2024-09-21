@@ -86,25 +86,32 @@ class SireumReporter(val originalReporter: scala.tools.nsc.reporters.FilteringRe
     "-Wconf:msg=legacy-binding:s"
   )
 
-  override def filter(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity): Int = {
-    if (suppressedWarnings.exists(m => msg.contains(m))) return Reporter.Suppress
+  def filter(pos: scala.reflect.internal.util.Position, msg: String): Boolean = {
+    if (suppressedWarnings.exists(m => msg.contains(m))) return true
     if (msg.startsWith("match may not be exhaustive")) {
       val text = pos.lineContent.trim
       if ((text.startsWith("val") || text.startsWith("var")) && !text.contains("match")) {
-        return Reporter.Suppress
+        return true
       }
+    }
+    false
+  }
+
+  override def filter(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity): Int = {
+    if (filter(pos, msg)) {
+      return Reporter.Suppress
     }
     super.filter(pos, msg, severity)
   }
 
   override def doReport(pos: scala.reflect.internal.util.Position, msg: String, severity: Severity, actions: List[CodeAction]): Unit = {
     severity match {
-      case INFO => originalReporter.echo(pos, msg, scala.Nil)
+      case INFO => originalReporter.echo(pos, msg, actions)
       case WARNING =>
-        if (filter(pos, msg, severity) != Reporter.Suppress) {
-          originalReporter.warning(pos, msg, scala.Nil)
+        if (!filter(pos, msg)) {
+          originalReporter.warning(pos, msg, actions)
         }
-      case _ => originalReporter.error(pos, msg, scala.Nil)
+      case _ => originalReporter.error(pos, msg, actions)
     }
   }
 
