@@ -32,7 +32,7 @@ class MemoizeTransformer(mat: MetaAnnotationTransformer) {
   def transform(name: Vector[String], tree: Tree): Unit = {
     tree match {
       case tree: Defn.Def =>
-        val rwMap = tree.parent.flatMap(_.parent) match {
+        val rwMap = tree.parent.flatMap(_.parent.parent) match {
           case Some(q"package $_ { ..$_ }") => mat.objectMemberReplace
           case Some(_: Defn.Object) => mat.objectMemberReplace
           case Some(_: Defn.Class) | Some(_: Defn.Trait) => mat.classMemberReplace
