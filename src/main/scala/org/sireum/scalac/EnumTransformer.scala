@@ -34,10 +34,10 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
   def transform(name: Vector[String], tree: Tree): Unit = {
     tree match {
       case tree: Defn.Object =>
-        if (tree.templ.early.nonEmpty ||
-          tree.templ.inits.nonEmpty ||
-          tree.templ.self.decltpe.nonEmpty ||
-          tree.templ.self.name.value != "") {
+        if (tree.templ.earlyClause.nonEmpty ||
+          tree.templ.body.selfOpt.exists(_.decltpe.nonEmpty) ||
+          tree.templ.body.selfOpt.exists(_.name.value != "") ||
+          tree.templ.inits.nonEmpty) {
           mat.error(tree.pos, s"Invalid @enum form on an object; it has to be of the form '@enum object ${tree.name.value} { ... }'.")
           return
         }
@@ -73,7 +73,7 @@ class EnumTransformer(mat: MetaAnnotationTransformer) {
         )
         var elements = Vector[Term.Name]()
         var i = 0
-        for (stat <- tree.templ.stats) {
+        for (stat <- tree.templ.body.stats) {
           val sym = stat match {
             case Lit.Symbol(s) => s.name
             case Lit.String(s) => s

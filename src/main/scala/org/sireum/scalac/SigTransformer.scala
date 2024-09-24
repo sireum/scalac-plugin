@@ -34,9 +34,9 @@ class SigTransformer(mat: MetaAnnotationTransformer) {
   def transform(isImmutable: Boolean, name: Vector[String], tree: Tree): Unit = {
     tree match {
       case tree: Defn.Trait =>
-        if (tree.templ.early.nonEmpty ||
-          tree.templ.self.decltpe.nonEmpty ||
-          tree.templ.self.name.value != "") {
+        if (tree.templ.earlyClause.nonEmpty ||
+          tree.templ.body.selfOpt.exists(_.decltpe.nonEmpty) ||
+          tree.templ.body.selfOpt.exists(_.name.value != "")) {
           val ann = if (isImmutable) "@sig" else "@msig"
           mat.error(tree.pos, s"Slang $ann traits have to be of the form '$ann trait <id> ... { ... }'.")
           return
@@ -45,7 +45,7 @@ class SigTransformer(mat: MetaAnnotationTransformer) {
         val tparams = tree.tparamClause.values
         val tVars = tparams.map { tp => Type.Name(tp.name.value) }
         val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
-        val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats, s => mat.error(tree.pos, s))
+        val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.body.stats, s => mat.error(tree.pos, s))
         val equals =
           if (hasEqual) {
             val eCases =

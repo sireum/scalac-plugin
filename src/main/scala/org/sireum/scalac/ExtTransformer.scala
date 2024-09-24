@@ -15,9 +15,9 @@ class ExtTransformer(mat: MetaAnnotationTransformer) {
   def transform(name: Vector[String], tree: Tree, args: List[Term]): Unit = {
     tree match {
       case tree: Defn.Object =>
-        if (tree.templ.early.nonEmpty ||
-          tree.templ.self.decltpe.nonEmpty ||
-          tree.templ.self.name.value != "") {
+        if (tree.templ.earlyClause.nonEmpty ||
+          tree.templ.body.selfOpt.exists(_.decltpe.nonEmpty) ||
+          tree.templ.body.selfOpt.exists(_.name.value != "")) {
           mat.error(tree.pos, s"Invalid @ext object form; it has to be of the form '@ext object ${tree.name.value} { ... }'.")
           return
         }
@@ -39,7 +39,7 @@ class ExtTransformer(mat: MetaAnnotationTransformer) {
           }
           t
         }
-        for (stat <- tree.templ.stats) stat match {
+        for (stat <- tree.templ.body.stats) stat match {
           case q"..$mods val ${x: Pat.Var}: $tpeopt = $$" =>
             if (mods.nonEmpty || tpeopt.isEmpty) {
               mat.error(stat.pos, s"Invalid Slang @ext on a val; it has to be of the form: 'val <id>: <type> = $$'")
@@ -86,10 +86,10 @@ class ExtTransformer(mat: MetaAnnotationTransformer) {
             mat.objectMemberReplace(name :+ mname.value) = newStat.syntax
           case tree: Defn.Trait =>
             if (tree.tparamClause.values.nonEmpty ||
-              tree.templ.early.nonEmpty ||
-              tree.templ.inits.nonEmpty ||
-              tree.templ.self.decltpe.nonEmpty ||
-              tree.templ.self.name.value != "") {
+              tree.templ.earlyClause.nonEmpty ||
+              tree.templ.body.selfOpt.exists(_.decltpe.nonEmpty) ||
+              tree.templ.body.selfOpt.exists(_.name.value != "") ||
+              tree.templ.inits.nonEmpty) {
               mat.error(stat.pos, s"Invalid trait inside Slang @ext object; it has to be of the form: 'trait ${tree.name.value}'")
             }
             mat.objectMemberReplace(name :+ tree.name.value) = q"type ${tree.name} = $extName.${tree.name}".syntax

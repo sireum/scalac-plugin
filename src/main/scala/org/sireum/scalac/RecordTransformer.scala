@@ -39,9 +39,9 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
   }
 
   def transformTrait(name: Vector[String], tree: Defn.Trait): Unit = {
-    if (tree.templ.early.nonEmpty ||
-      tree.templ.self.decltpe.nonEmpty ||
-      tree.templ.self.name.value != "") {
+    if (tree.templ.earlyClause.nonEmpty ||
+      tree.templ.body.selfOpt.exists(_.decltpe.nonEmpty) ||
+      tree.templ.body.selfOpt.exists(_.name.value != "")) {
       mat.error(tree.pos, "Slang @record traits have to be of the form '@record trait <id> ... { ... }'.")
       return
     }
@@ -49,7 +49,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
     val tparams = tree.tparamClause.values
     val tVars = tparams.map { tp => Type.Name(tp.name.value) }
     val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
-    val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats, s => mat.error(tree.pos, s))
+    val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.body.stats, s => mat.error(tree.pos, s))
     val equals =
       if (hasEqual) {
         val eCases =
@@ -70,19 +70,19 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
   }
 
   def transformClass(name: Vector[String], tree: Defn.Class): Unit = {
-    if (tree.templ.early.nonEmpty ||
-      tree.templ.self.decltpe.nonEmpty ||
-      tree.templ.self.name.value != "") {
+    if (tree.templ.earlyClause.nonEmpty ||
+      tree.templ.body.selfOpt.exists(_.decltpe.nonEmpty) ||
+      tree.templ.body.selfOpt.exists(_.name.value != "")) {
       mat.error(tree.pos, "Slang @record classes have to be of the form '@record class <id> ... (...) ... { ... }'.")
       return
     }
     val (tname, tparams, paramss) = (tree.name, tree.tparamClause.values, tree.ctor.paramClauses.map(_.values))
     val tVars = tparams.map { tp => Type.Name(tp.name.value) }
     val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
-    val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.stats, s => mat.error(tree.pos, s))
+    val (hasHash, hasEqual, hasString) = hasHashEqualString(tpe, tree.templ.body.stats, s => mat.error(tree.pos, s))
     var varNames: Vector[Term.Name] = Vector()
     var inVars = Vector[Term.Assign]()
-    for (stat <- tree.templ.stats) stat match {
+    for (stat <- tree.templ.body.stats) stat match {
       case stat: Defn.Var =>
         val hasSpec = stat.mods.exists({
           case mod"@spec" => true
