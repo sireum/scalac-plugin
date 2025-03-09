@@ -73,9 +73,13 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
     if (tree.templ.earlyClause.nonEmpty ||
       tree.templ.body.selfOpt.exists(_.decltpe.nonEmpty) ||
       tree.templ.body.selfOpt.exists(_.name.value != "")) {
-      mat.error(tree.pos, "Slang @record classes have to be of the form '@record class <id> ... (...) ... { ... }'.")
+      mat.error(tree.pos, "Slang @record classes have to be of the form '@record [@unclonable] class <id> ... (...) ... { ... }'.")
       return
     }
+    val hasUnclonable = tree.mods.exists({
+      case mod"@unclonable" => true
+      case _ => false
+    })
     val (tname, tparams, paramss) = (tree.name, tree.tparamClause.values, tree.ctor.paramClauses.map(_.values))
     val tVars = tparams.map { tp => Type.Name(tp.name.value) }
     val tpe = if (tVars.isEmpty) tname else t"$tname[..$tVars]"
@@ -199,7 +203,9 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
       }
 
       {
-        val clone = {
+        val clone = if (hasUnclonable) {
+          q"""override def $$clone: $tpe = { _root_.org.sireum.halt(${Lit.String(s"Cannot clone ${tname.value}")}) }"""
+        } else {
           val cloneNew = q"""val r: $tpe = { if (!$$clonable) halt(s"$$this cannot be assigned to a variable"); new ${init"$tname(..${applyArgs.toList.map(arg => q"$helperCloneAssign(this.$arg)")})" } }"""
           q"override def $$clone: $tpe = { ..${(cloneNew +: inVars :+ q"r").toList} }"
         }

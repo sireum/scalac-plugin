@@ -214,6 +214,7 @@ class MetaAnnotationTransformer(val isScript: Boolean,
             case "@sig" => st.transform(isImmutable = true, enclosing, parent)
             case "@spec" => // skip
             case "@imm" => // skip
+            case "@unclonable" => // skip
             case "@mut" => // skip
             case "@index" => // skip
             case "@inline" => // skip
@@ -221,6 +222,8 @@ class MetaAnnotationTransformer(val isScript: Boolean,
             case "@rw" => // skip
             case "@abs" => // skip
             case "@induct" => // skip
+            case "@anvil.hls" => // skip
+            case "@anvil.test" => // skip
             case annSyntax =>
               ann.init.tpe.syntax match {
                 case "range" if ann.init.argClauses.size == 1 => rt.transform(enclosing, parent, ann.init.argClauses.head.values)
