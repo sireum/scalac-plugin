@@ -144,8 +144,8 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
         val minErrorMessage = Lit.String(s" is less than $cname.Min ($min)")
         val maxErrorMessage = Lit.String(s" is greater than $cname.Max ($max)")
 
-        val (valueTypeName, bvType, boxerType, minLit, maxLit, indexLit, apply, intObject, longObject, bigIntObject) = width match {
-          case 8 => (
+        def info8 = {
+          (
             scalaByte,
             init"_root_.org.sireum.Z.BV.Byte[$typeName]",
             init"_root_.org.sireum.Z.Boxer.Byte",
@@ -180,14 +180,16 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
               def unapply(n: $typeName): $scalaOption[$scalaBigInt] = $scalaSomeQ(n.toBigInt)
             }"""
           )
-          case 16 => (
-            scalaShort,
-            init"_root_.org.sireum.Z.BV.Short[$typeName]",
-            init"_root_.org.sireum.Z.Boxer.Short",
-            q"(${Lit.Int(min.toInt)}).toShort",
-            q"(${Lit.Int(max.toInt)}).toShort",
-            q"(${Lit.Int(index.toInt)}).toShort",
-            q"""def apply(n: $sireumZ): $typeName = n match {
+        }
+
+        def info16 = (
+          scalaShort,
+          init"_root_.org.sireum.Z.BV.Short[$typeName]",
+          init"_root_.org.sireum.Z.Boxer.Short",
+          q"(${Lit.Int(min.toInt)}).toShort",
+          q"(${Lit.Int(max.toInt)}).toShort",
+          q"(${Lit.Int(index.toInt)}).toShort",
+          q"""def apply(n: $sireumZ): $typeName = n match {
               case n: _root_.org.sireum.Z.MP.Long =>
                 if (!isWrapped) {
                   assert(Min.toMP <= n, n.toString + $minErrorMessage)
@@ -202,27 +204,28 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
                 new $ctorName(n.value.toShort)
               case _ => halt(s"Unsupported $$Name creation from $${n.Name}.")
             }""",
-            q"""object Int extends org.sireum.$$ZCompanionInt[$typeName] {
+          q"""object Int extends org.sireum.$$ZCompanionInt[$typeName] {
               def apply(n: $scalaInt): $typeName = if (isWrapped) new $ctorName(n.toShort) else $termName($sireumZQ.MP(n))
               def unapply(n: $typeName): $scalaOption[$scalaInt] = $scalaSomeQ(n.toMP.toInt)
             }""",
-            q"""object Long extends org.sireum.$$ZCompanionLong[$typeName] {
+          q"""object Long extends org.sireum.$$ZCompanionLong[$typeName] {
               def apply(n: $scalaLong): $typeName = if (isWrapped) new $ctorName(n.toShort) else $termName($sireumZQ.MP(n))
               def unapply(n: $typeName): $scalaOption[$scalaLong] = $scalaSomeQ(n.toMP.toLong)
             }""",
-            q"""object BigInt extends org.sireum.$$ZCompanionBigInt[$typeName] {
+          q"""object BigInt extends org.sireum.$$ZCompanionBigInt[$typeName] {
               def apply(n: $scalaBigInt): $typeName = if (isWrapped) new $ctorName(n.toShort) else $termName($sireumZQ.MP(n))
               def unapply(n: $typeName): $scalaOption[$scalaBigInt] = $scalaSomeQ(n.toBigInt)
             }"""
-          )
-          case 32 => (
-            scalaInt,
-            init"_root_.org.sireum.Z.BV.Int[$typeName]",
-            init"_root_.org.sireum.Z.Boxer.Int",
-            Lit.Int(min.toInt),
-            Lit.Int(max.toInt),
-            Lit.Int(index.toInt),
-            q"""def apply(n: $sireumZ): $typeName = n match {
+        )
+
+        def info32 = (
+          scalaInt,
+          init"_root_.org.sireum.Z.BV.Int[$typeName]",
+          init"_root_.org.sireum.Z.Boxer.Int",
+          Lit.Int(min.toInt),
+          Lit.Int(max.toInt),
+          Lit.Int(index.toInt),
+          q"""def apply(n: $sireumZ): $typeName = n match {
               case n: _root_.org.sireum.Z.MP.Long =>
                 if (!isWrapped) {
                   assert(Min.toMP <= n, n.toString + $minErrorMessage)
@@ -237,7 +240,7 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
                 new $ctorName(n.value.toInt)
               case _ => halt(s"Unsupported $$Name creation from $${n.Name}.")
             }""",
-            q"""object Int extends _root_.org.sireum.$$ZCompanionInt[$typeName] {
+          q"""object Int extends _root_.org.sireum.$$ZCompanionInt[$typeName] {
               def apply(n: $scalaInt): $typeName = if (isWrapped) new $ctorName(n) else $termName($sireumZQ.MP(n))
               def unapply(n: $typeName): $scalaOption[$scalaInt] = {
                 val v = n.toMP
@@ -245,23 +248,24 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
                 else $scalaNoneQ
               }
             }""",
-            q"""object Long extends _root_.org.sireum.$$ZCompanionLong[$typeName] {
+          q"""object Long extends _root_.org.sireum.$$ZCompanionLong[$typeName] {
               def apply(n: $scalaLong): $typeName = if (isWrapped) new $ctorName(n.toInt) else $termName($sireumZQ.MP(n))
               def unapply(n: $typeName): $scalaOption[$scalaLong] = $scalaSomeQ(n.toMP.toLong)
             }""",
-            q"""object BigInt extends _root_.org.sireum.$$ZCompanionBigInt[$typeName] {
+          q"""object BigInt extends _root_.org.sireum.$$ZCompanionBigInt[$typeName] {
               def apply(n: $scalaBigInt): $typeName = if (isWrapped) new $ctorName(n.toInt) else $termName($sireumZQ.MP(n))
               def unapply(n: $typeName): $scalaOption[$scalaBigInt] = $scalaSomeQ(n.toBigInt)
             }"""
-          )
-          case 64 => (
-            scalaLong,
-            init"_root_.org.sireum.Z.BV.Long[$typeName]",
-            init"_root_.org.sireum.Z.Boxer.Long",
-            Lit.Long(min.toLong),
-            Lit.Long(max.toLong),
-            Lit.Long(index.toLong),
-            q"""def apply(n: $sireumZ): $typeName = n match {
+        )
+
+        def info64 = (
+          scalaLong,
+          init"_root_.org.sireum.Z.BV.Long[$typeName]",
+          init"_root_.org.sireum.Z.Boxer.Long",
+          Lit.Long(min.toLong),
+          Lit.Long(max.toLong),
+          Lit.Long(index.toLong),
+          q"""def apply(n: $sireumZ): $typeName = n match {
               case n: _root_.org.sireum.Z.MP.Long =>
                 if (!isWrapped) {
                   assert(Min.toMP <= n, n.toString + $minErrorMessage)
@@ -276,7 +280,7 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
                 new $ctorName(n.value.toLong)
               case _ => halt(s"Unsupported $$Name creation from $${n.Name}.")
             }""",
-            q"""object Int extends org.sireum.$$ZCompanionInt[$typeName] {
+          q"""object Int extends org.sireum.$$ZCompanionInt[$typeName] {
               def apply(n: $scalaInt): $typeName = if (isWrapped) new $ctorName(n) else $termName($sireumZQ.MP(n))
               def unapply(n: $typeName): $scalaOption[$scalaInt] = {
                 val v = n.toMP
@@ -284,7 +288,7 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
                 else $scalaNoneQ
               }
             }""",
-            q"""object Long extends _root_.org.sireum.$$ZCompanionLong[$typeName] {
+          q"""object Long extends _root_.org.sireum.$$ZCompanionLong[$typeName] {
               def apply(n: $scalaLong): $typeName = if (isWrapped) new $ctorName(n) else $termName($sireumZQ.MP(n))
               def unapply(n: $typeName): $scalaOption[$scalaLong] = {
                 val v = n.toMP
@@ -292,11 +296,17 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
                 else $scalaNoneQ
               }
             }""",
-            q"""object BigInt extends _root_.org.sireum.$$ZCompanionBigInt[$typeName] {
+          q"""object BigInt extends _root_.org.sireum.$$ZCompanionBigInt[$typeName] {
               def apply(n: $scalaBigInt): $typeName = if (isWrapped) new $ctorName(n.toLong) else $termName($sireumZQ.MP(n))
               def unapply(n: $typeName): $scalaOption[$scalaBigInt] = $scalaSomeQ(n.toBigInt)
             }"""
-          )
+        )
+
+        val (valueTypeName, bvType, boxerType, minLit, maxLit, indexLit, apply, intObject, longObject, bigIntObject) = width match {
+          case 8 => info8
+          case 16 => info16
+          case 32 => info32
+          case 64 => info64
           case _ => return
         }
 
