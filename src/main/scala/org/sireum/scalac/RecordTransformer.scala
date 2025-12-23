@@ -337,7 +337,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
                 q"def apply(): $tpe = { new $tname() }",
                 q"def unapply(o: $tpe): true = { true }")
             else
-              Vector(q"private[this] val $$v: $scalaAnyRef = { new $tname() }",
+              Vector(q"private[this] val $$v = { new $tname() }",
                 q"def apply(): $tpe = { $$v.asInstanceOf[$tpe] }",
                 q"def unapply(o: $tpe): true = { true }")
           else if (inVars.nonEmpty)
@@ -345,7 +345,7 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
               q"def apply(): $tpe = { new ${t"$tname[..${tparams.map(_ => scalaNothing)}]"}() }",
               q"def unapply(o: $tpe): true = { true }")
           else
-            Vector(q"private[this] val $$v: $scalaAnyRef = { new ${t"$tname[..${tparams.map(_ => scalaNothing)}]"}() }",
+            Vector(q"private[this] val $$v = { new ${t"$tname[..${tparams.map(_ => scalaNothing)}]"}() }",
               q"def apply[..$tparams](): $tpe = { $$v.asInstanceOf[$tpe] }",
               q"def unapply[..$tparams](o: $tpe): true = { true }")
         mat.objectMembers.getOrElseUpdate(name, MSeq()) ++= objectMembers.map(_.syntax)

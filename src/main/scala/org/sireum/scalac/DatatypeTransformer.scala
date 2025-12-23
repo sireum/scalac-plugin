@@ -74,7 +74,7 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
     if (tree.templ.earlyClause.nonEmpty ||
       tree.templ.body.selfOpt.exists(_.decltpe.nonEmpty) ||
       tree.templ.body.selfOpt.exists(_.name.value != "")) {
-      mat.error(tree.pos, "Slang @datatype classes have to be of the form '@record class <id> ... (...) ... { ... }'.")
+      mat.error(tree.pos, "Slang @datatype classes have to be of the form '@datatype class <id> ... (...) ... { ... }'.")
       return
     }
     val (tname, tparams, paramss) = (tree.name, tree.tparamClause.values, tree.ctor.paramClauses.map(_.values))
@@ -280,11 +280,11 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
       {
         val (v, apply, unapply) =
           if (tparams.isEmpty)
-            (q"private[this] val $$v: $scalaAnyRef = { new $tname() }",
+            (q"private[this] val $$v = { new $tname() }",
               q"def apply(): $tpe = { $$v.asInstanceOf[$tpe] }",
               q"def unapply(o: $tpe): true = { true }")
           else
-            (q"private[this] val $$v: $scalaAnyRef = { new ${t"$tname[..${tparams.map(_ => scalaNothing)}]"}() }",
+            (q"private[this] val $$v = { new ${t"$tname[..${tparams.map(_ => scalaNothing)}]"}() }",
               q"def apply[..$tparams](): $tpe = { $$v.asInstanceOf[$tpe] }",
               q"def unapply[..$tparams](o: $tpe): true = { true }")
         mat.objectMembers.getOrElseUpdate(name, MSeq()) ++= Vector(v.syntax, apply.syntax, unapply.syntax)

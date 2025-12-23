@@ -83,7 +83,8 @@ class SireumReporter(val originalReporter: scala.tools.nsc.reporters.FilteringRe
   val suppressedWarnings: Set[String] = Set(
     "symbol literal is deprecated",
     "The outer reference in this type test cannot be checked at run time",
-    "-Wconf:msg=legacy-binding:s"
+    "-Wconf:msg=legacy-binding:s",
+    "adaptation of an empty argument list by inserting () is deprecated"
   )
 
   def filter(pos: scala.reflect.internal.util.Position, msg: String): Boolean = {
