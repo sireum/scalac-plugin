@@ -197,9 +197,9 @@ class DatatypeTransformer(mat: MetaAnnotationTransformer) {
                          if ($$hasString) super.string.value else {
                            val sb = new _root_.java.lang.StringBuilder
                            sb.append(${Lit.String(tname.value)})
-                           sb.append('(')
+                           sb.append(${Lit.Char('(')})
                            ..${appends.toList}
-                           sb.append(')')
+                           sb.append(${Lit.Char(')')})
                            sb.toString
                          }
                        }""",
