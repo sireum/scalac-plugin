@@ -56,12 +56,12 @@ class RecordTransformer(mat: MetaAnnotationTransformer) {
           List(if (tparams.isEmpty) p"case o: $tname => isEqual(o)"
           else p"case (o: $tname[..$tVars] @unchecked) => isEqual(o)",
             p"case _ => return false")
-        List(q"final protected override val $$hasEquals = true",
+        List(q"final protected override val $$hasEquals: $scalaBoolean = true",
           q"override def equals(o: $scalaAny): $scalaBoolean = { o match { ..case $eCases } }")
       } else List()
     val hash = if (hasHash) List(q"override def hashCode: $scalaInt = { hash.hashCode }") else List()
     val toString =
-      if (hasString) List(q"final protected override val $$hasString = true",
+      if (hasString) List(q"final protected override val $$hasString: $scalaBoolean = true",
         q"override def toString: $javaString = { string.value }")
       else List()
     mat.adtTraits.add(name)

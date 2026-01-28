@@ -52,7 +52,7 @@ class SigTransformer(mat: MetaAnnotationTransformer) {
               List(if (tparams.isEmpty) p"case o: $tname => isEqual(o)"
               else p"case (o: $tname[..$tVars] @unchecked) => isEqual(o)",
                 p"case _ => return false")
-            List(q"protected override def $$hasEquals = true",
+            List(q"protected override def $$hasEquals: $scalaBoolean = true",
               q"override def equals(o: $scalaAny): $scalaBoolean = { o match { ..case $eCases } }")
           } else List()
         val hash = if (hasHash) List(q"override def hashCode: $scalaInt = { hash.hashCode }") else List()
