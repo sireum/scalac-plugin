@@ -324,7 +324,7 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
                   @inline def ===(that: $typeName): $sireumB = value == that.value
                   @inline def =!=(that: $typeName): $sireumB = value != that.value
                   @inline def toZ: $sireumZ = toBigInt
-                  def make(v: $valueTypeName): $typeName = $termName(v)
+                  def make(v: $valueTypeName): $typeName = ${if (wrapped) q"new $ctorName(v)" else q"$termName(v)"}
                   def boxer = $termName.Boxer
                   override def equals(that: $scalaAny): $scalaBoolean =
                     that match {
@@ -346,11 +346,68 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
                   @inline def ===(that: $typeName): $sireumB = value == that.value
                   @inline def =!=(that: $typeName): $sireumB = value != that.value
                   @inline def toZ: $sireumZ = toBigInt
-                  def make(v: $valueTypeName): $typeName = $termName(v)
+                  def make(v: $valueTypeName): $typeName = ${if (wrapped) q"new $ctorName(v)" else q"$termName(v)"}
                   def boxer = $termName.Boxer
                 }""".syntax
+        val boxerObject = width match {
+          case 8 =>
+            q"""object Boxer extends $boxerType {
+              private val cache: _root_.scala.Array[_root_.scala.AnyRef] = {
+                val a = new _root_.scala.Array[_root_.scala.AnyRef](256)
+                var i: _root_.scala.Int = 0
+                while (i < 256) {
+                  a(i) = (new $ctorName(i.toByte)).asInstanceOf[_root_.scala.AnyRef]
+                  i += 1
+                }
+                a
+              }
+              def make(o: $valueTypeName): _root_.scala.Any = cache(o.toInt & 0xFF)
+            }"""
+          case 16 =>
+            q"""object Boxer extends $boxerType {
+              private val cache: _root_.scala.Array[_root_.scala.AnyRef] = {
+                val a = new _root_.scala.Array[_root_.scala.AnyRef](258)
+                var i: _root_.scala.Int = -1
+                while (i <= 256) {
+                  a(i + 1) = (new $ctorName(i.toShort)).asInstanceOf[_root_.scala.AnyRef]
+                  i += 1
+                }
+                a
+              }
+              def make(o: $valueTypeName): _root_.scala.Any = {
+                val i: _root_.scala.Int = o.toInt
+                if (i >= -1 && i <= 256) cache(i + 1) else (new $ctorName(o)).asInstanceOf[_root_.scala.AnyRef]
+              }
+            }"""
+          case 32 =>
+            q"""object Boxer extends $boxerType {
+              private val cache: _root_.scala.Array[_root_.scala.AnyRef] = {
+                val a = new _root_.scala.Array[_root_.scala.AnyRef](258)
+                var i: _root_.scala.Int = -1
+                while (i <= 256) {
+                  a(i + 1) = (new $ctorName(i)).asInstanceOf[_root_.scala.AnyRef]
+                  i += 1
+                }
+                a
+              }
+              def make(o: $valueTypeName): _root_.scala.Any = if (o >= -1 && o <= 256) cache(o + 1) else (new $ctorName(o)).asInstanceOf[_root_.scala.AnyRef]
+            }"""
+          case _ => // 64
+            q"""object Boxer extends $boxerType {
+              private val cache: _root_.scala.Array[_root_.scala.AnyRef] = {
+                val a = new _root_.scala.Array[_root_.scala.AnyRef](258)
+                var i: _root_.scala.Int = -1
+                while (i <= 256) {
+                  a(i + 1) = (new $ctorName(i.toLong)).asInstanceOf[_root_.scala.AnyRef]
+                  i += 1
+                }
+                a
+              }
+              def make(o: $valueTypeName): _root_.scala.Any = if (o >= -1L && o <= 256L) cache((o + 1L).toInt) else (new $ctorName(o)).asInstanceOf[_root_.scala.AnyRef]
+            }"""
+        }
         val objectMembers = Seq(
-          q"object Boxer extends $boxerType { def make(o: $valueTypeName): $typeName = new $ctorName(o) }",
+          boxerObject,
           q"val Name: $javaString = $nameStr",
           q"val BitWidth: $scalaInt = ${Lit.Int(width)}",
           q"val Min: $typeName = new $ctorName($minLit)",
