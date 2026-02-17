@@ -315,9 +315,9 @@ class BitsTransformer(mat: MetaAnnotationTransformer) {
             q"""class $typeName(val value: $valueTypeName) extends $bvType {
                   @inline def Name: $javaString = $termName.Name
                   @inline def BitWidth: $scalaInt = $termName.BitWidth
-                  @inline def Min: $typeName = $termName.Min
-                  @inline def Max: $typeName = $termName.Max
-                  @inline def Index: $typeName = $termName.Index
+                  val Min: $typeName = $termName.Min
+                  val Max: $typeName = $termName.Max
+                  val Index: $typeName = $termName.Index
                   @inline def isZeroIndex: $scalaBoolean = $termName.isZeroIndex
                   @inline def isSigned: $scalaBoolean = $termName.isSigned
                   @inline def isWrapped: $scalaBoolean = $termName.isWrapped

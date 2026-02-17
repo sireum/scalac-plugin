@@ -123,7 +123,8 @@ class SireumPlugin(override val global: Global) extends Plugin {
   override val name = "sireum"
   override val description = "Compiler plugin for the Sireum Scala subset."
   override val components: List[PluginComponent] = List(
-    new SireumComponent(global), new SireumContractEraserComponent(global)
+    new SireumComponent(global), new SireumContractEraserComponent(global),
+    new SireumBShortCircuitComponent(global), new SireumBitsLiteralComponent(global)
   )
 
   val originalReporter: scala.tools.nsc.reporters.FilteringReporter = global.reporter
@@ -692,6 +693,200 @@ final class SireumContractEraserComponent(val global: Global) extends PluginComp
       if (SireumPlugin.isSireum(global)(unit)) {
         val st = new SemanticsTransformer(unit)
         unit.body = st.transform(unit.body)
+      }
+    }
+  }
+}
+
+final class SireumBShortCircuitComponent(val global: Global) extends PluginComponent with TypingTransformers {
+
+  import global._
+
+  override val phaseName = "sireum-b-short-circuit"
+  override val runsAfter: List[String] = List[String]("superaccessors")
+  override val runsBefore: List[String] = List[String]("patmat")
+
+  private def isB(tpe: Type): Boolean =
+    tpe != null && tpe.typeSymbol.fullName == "org.sireum.B"
+
+  final class BShortCircuitTransformer(unit: CompilationUnit) extends TypingTransformer(unit) {
+
+    // B.apply(Boolean): B — top-level companion, no outer accessor issues
+    private lazy val bCompanion: Symbol = rootMirror.getRequiredModule("org.sireum.B")
+    private lazy val bApplySym: Symbol = {
+      val candidates = bCompanion.info.member(TermName("apply"))
+      if (candidates.isOverloaded)
+        candidates.alternatives.find(s => s.paramLists.flatten.exists(_.tpe =:= definitions.BooleanTpe)).get
+      else candidates
+    }
+
+    // Boolean.&& and Boolean.|| — compiler intrinsics, compiled to branch instructions (no lambda)
+    private lazy val boolAndSym: Symbol = definitions.BooleanTpe.member(TermName("$amp$amp"))
+    private lazy val boolOrSym: Symbol = definitions.BooleanTpe.member(TermName("$bar$bar"))
+
+    // Extract Boolean from B via .value
+    private def boolOf(b: Tree): Tree = {
+      val valueSym = b.tpe.member(TermName("value"))
+      val sel = Select(b, valueSym)
+      sel.setType(definitions.BooleanTpe)
+      sel.pos = b.pos
+      sel
+    }
+
+    // Wrap Boolean expression in B.apply(...) to produce B
+    private def wrapInB(boolExpr: Tree, tpe: Type, pos: Position): Tree = {
+      val ref = gen.mkAttributedRef(bCompanion)
+      val sel = Select(ref, bApplySym)
+      sel.setType(bApplySym.info)
+      sel.pos = pos
+      val app = Apply(sel, List(boolExpr))
+      app.setType(tpe)
+      app.pos = pos
+      app
+    }
+
+    override def transform(tree: Tree): Tree = tree match {
+      // B.&&(y) → B.apply(x.value && y.value)
+      // Boolean.&& is a compiler intrinsic — compiles to branches, no Function0/ObjectRef
+      case Apply(Select(x, TermName("$amp$amp")), List(y)) if isB(x.tpe) =>
+        val newX = transform(x)
+        val newY = transform(y)
+        val andSel = Select(boolOf(newX), boolAndSym)
+        andSel.setType(boolAndSym.info)
+        andSel.pos = tree.pos
+        val boolAnd = Apply(andSel, List(boolOf(newY)))
+        boolAnd.setType(definitions.BooleanTpe)
+        boolAnd.pos = tree.pos
+        wrapInB(boolAnd, tree.tpe, tree.pos)
+
+      // B.||(y) → B.apply(x.value || y.value)
+      case Apply(Select(x, TermName("$bar$bar")), List(y)) if isB(x.tpe) =>
+        val newX = transform(x)
+        val newY = transform(y)
+        val orSel = Select(boolOf(newX), boolOrSym)
+        orSel.setType(boolOrSym.info)
+        orSel.pos = tree.pos
+        val boolOr = Apply(orSel, List(boolOf(newY)))
+        boolOr.setType(definitions.BooleanTpe)
+        boolOr.pos = tree.pos
+        wrapInB(boolOr, tree.tpe, tree.pos)
+
+      case _ => super.transform(tree)
+    }
+  }
+
+  def newPhase(prev: Phase): StdPhase = new StdPhase(prev) {
+    def apply(unit: CompilationUnit): Unit = {
+      if (SireumPlugin.isSireum(global)(unit)) {
+        val t = new BShortCircuitTransformer(unit)
+        unit.body = t.transform(unit.body)
+      }
+    }
+  }
+}
+
+final class SireumBitsLiteralComponent(val global: Global) extends PluginComponent with TypingTransformers {
+
+  import global._
+
+  override val phaseName = "sireum-bits-literal"
+  override val runsAfter: List[String] = List[String]("superaccessors")
+  override val runsBefore: List[String] = List[String]("patmat")
+
+  private lazy val stringContextClass = rootMirror.getRequiredClass("scala.StringContext")
+  private lazy val stringContextModule = stringContextClass.companionModule
+
+  // Detect @bits types by checking if the type extends Z.BV.* traits
+  private def isBitsType(tpe: Type): Boolean = {
+    if (tpe == null) return false
+    tpe.baseClasses.exists(_.fullName.startsWith("org.sireum.Z.BV."))
+  }
+
+  // Check if the @bits type uses Long (64-bit) for its value field
+  private def usesLong(tpe: Type): Boolean = {
+    val valueMember = tpe.member(TermName("value"))
+    valueMember != NoSymbol && valueMember.info.resultType =:= definitions.LongTpe
+  }
+
+  // Check if the tree involves StringContext (hallmark of string interpolation)
+  private def involvesStringContext(tree: Tree): Boolean = {
+    var found = false
+    tree.foreach { t =>
+      if (!found && t.symbol != null) {
+        val s = t.symbol
+        if (s == stringContextClass || s == stringContextModule ||
+          s.owner == stringContextClass || s.owner == stringContextModule)
+          found = true
+      }
+    }
+    found
+  }
+
+  // Extract the first string literal from the tree
+  private def extractFirstStringLiteral(tree: Tree): Option[String] = {
+    var result: Option[String] = None
+    tree.foreach {
+      case Literal(Constant(s: String)) if result.isEmpty => result = Some(s)
+      case _ =>
+    }
+    result
+  }
+
+  final class BitsLiteralTransformer(unit: CompilationUnit) extends TypingTransformer(unit) {
+    override def transform(tree: Tree): Tree = {
+      // Bottom-up: transform children first so nested interpolations are handled before parents
+      val tree1 = super.transform(tree)
+      tree1 match {
+        case tree1 @ Apply(_, _) if isBitsType(tree1.tpe) && involvesStringContext(tree1) =>
+          extractFirstStringLiteral(tree1) match {
+            case Some(str) =>
+              try {
+                val n = BigInt(str.trim)
+                val companion = tree1.tpe.typeSymbol.companionModule
+                if (companion == NoSymbol) return tree1
+                val companionRef = gen.mkAttributedRef(companion)
+
+                val long = usesLong(tree1.tpe)
+                val objName = if (long) TermName("Long") else TermName("Int")
+                val primTpe = if (long) definitions.LongTpe else definitions.IntTpe
+                val objSym = companion.info.member(objName)
+                if (objSym == NoSymbol) return tree1
+
+                // Find the apply overload that takes scala.Int or scala.Long
+                val allApply = objSym.info.member(TermName("apply"))
+                if (allApply == NoSymbol) return tree1
+                val applySym = if (allApply.isOverloaded) {
+                  allApply.alternatives.find(_.paramLists.flatten.headOption.exists(_.tpe =:= primTpe))
+                    .getOrElse(return tree1)
+                } else allApply
+
+                // Build: Companion.Int.apply(intLiteral) or Companion.Long.apply(longLiteral)
+                val objRef = gen.mkAttributedSelect(companionRef, objSym)
+                val applyRef = gen.mkAttributedSelect(objRef, applySym)
+                val value = if (long) Constant(n.toLong) else Constant(n.toInt)
+                val lit = Literal(value)
+                lit.setType(primTpe)
+                lit.pos = tree1.pos
+                val app = Apply(applyRef, List(lit))
+                app.setType(tree1.tpe)
+                app.pos = tree1.pos
+                app
+              } catch {
+                case _: NumberFormatException => tree1
+                case _: ArithmeticException => tree1
+              }
+            case None => tree1
+          }
+        case _ => tree1
+      }
+    }
+  }
+
+  def newPhase(prev: Phase): StdPhase = new StdPhase(prev) {
+    def apply(unit: CompilationUnit): Unit = {
+      if (SireumPlugin.isSireum(global)(unit)) {
+        val t = new BitsLiteralTransformer(unit)
+        unit.body = t.transform(unit.body)
       }
     }
   }

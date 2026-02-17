@@ -133,9 +133,9 @@ class RangeTransformer(mat: MetaAnnotationTransformer) {
           if (mat.isScript)
             q"""class $typeName(val value: $sireumZ) extends _root_.org.sireum.Z.Range[$typeName] {
                   @inline def Name: $javaString = $termName.Name
-                  @inline def Min: $typeName = $termName.Min
-                  @inline def Max: $typeName = $termName.Max
-                  @inline def Index: $typeName = $termName.Index
+                  val Min: $typeName = $termName.Min
+                  val Max: $typeName = $termName.Max
+                  val Index: $typeName = $termName.Index
                   @inline def isZeroIndex: $scalaBoolean = $termName.isZeroIndex
                   @inline def isSigned: $scalaBoolean = $termName.isSigned
                   @inline def hasMin: $scalaBoolean = $termName.hasMin
